@@ -4,6 +4,7 @@
 #include "synth/channel.h"
 #include "commandargs.h"
 #include "tagmap.h"
+#include "asfcodec.h"
 #include <fstream>
 #include <iostream>
 #include <iomanip>
@@ -29,8 +30,24 @@ int main(int argc, char** argv)
     return 1;
   }
 
-  try {
+  //try {
     std::string infile = args.positional().at(0);
+    if (infile.substr(infile.size() - 3) == "wma") {
+      AsfCodec wma;
+      auto sample = wma.decodeFile(infile);
+      RiffWriter riff(sample->sampleRate, sample->channels.size() > 1);
+      std::string filename = args.getString("output", infile + ".wav");
+      std::cerr << "writing to " << filename << std::endl;
+      riff.open(filename);
+      if (sample->channels.size() > 1) {
+        riff.write(sample->channels[0], sample->channels[1]);
+      } else {
+        riff.write(sample->channels[0]);
+      }
+      riff.close();
+      std::cerr << "finished writing " << sample->channels[0].size() << " to " << filename << std::endl;
+      return 0;
+    }
     IIDXSequence seq(infile);
 
     if (args.hasKey("verbose")) {
@@ -57,8 +74,10 @@ int main(int argc, char** argv)
     ctx->save(&riff);
     riff.close();
     return 0;
+    /*
   } catch (std::exception& e) {
     std::cerr << argv[0] << ": " << e.what() << std::endl;
     return 1;
   }
+  */
 }
