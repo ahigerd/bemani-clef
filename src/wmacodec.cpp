@@ -41,7 +41,6 @@
 #include <cmath>
 #include <complex>
 #include "mdct.h"
-//#include "wma_lsp.h"
 #include "wma_vlc.h"
 
 // from wma.c:
@@ -94,10 +93,6 @@ WmaCodec::WmaCodec(const WaveFormatEx& fmt, uint32_t maxPacketSize)
 
 SampleData* WmaCodec::decodeRange(std::vector<uint8_t>::const_iterator start, std::vector<uint8_t>::const_iterator end, uint64_t sampleID)
 {
-  int n4 = frameLen / 2;
-
-  // int vlcTable = fmt.sampleRate >= 32000 && bps < 1.16 ? (bps < 0.72 ? 0 : 1) : 2;
-
   sampleData = sampleID ? new SampleData(sampleID) : new SampleData();
   sampleData->sampleRate = fmt.sampleRate;
   for (int i = 0; i < fmt.channels; i++) {
@@ -108,7 +103,6 @@ SampleData* WmaCodec::decodeRange(std::vector<uint8_t>::const_iterator start, st
   coefVlc[1] = VLC::get(5);
   expVlc = VLC::get(-1);
   mdct = MDCT::get(frameBits + 1);
-  //LSP* lsp = LSP::get(frameLen);
 
   BitStream bitstream(start, end, maxPacketSize);
   expBits[0] = expBits[1] = frameBits;
@@ -261,20 +255,6 @@ bool WmaCodec::parseBlock(BitStream& bitstream, int frameNum, int blockNum)
 
     int coefNumBits = ff_wma_total_gain_to_bits(totalGain);
     numCoefs = numCoefsBase >> (frameBits - blockBits);
-    /*
-    LSP::Curve curves[2];
-    for (int ch = 0; ch < fmt.channels; ch++) {
-      if (!channelCoded[ch]) {
-        continue;
-      }
-      float lspCoefs[10];
-      for (int j = 0; j < 10; j++) {
-        int val = bitstream.read((j == 0 || j >= 8) ? 3 : 4);
-        lspCoefs[j] = ff_wma_lsp_codebook[j][val];
-      }
-      curves[ch] = lsp->toCurve(frameLen, lspCoefs);
-    }
-    */
 
     for (int ch = 0; ch < fmt.channels; ch++) {
       if (channelCoded[ch]) {
@@ -318,7 +298,7 @@ bool WmaCodec::parseBlock(BitStream& bitstream, int frameNum, int blockNum)
       float mult = mdctNorm * std::pow(10, totalGain * 0.05) / maxExponent[ch];
       std::memset(coefs[ch], 0, sizeof(coefs[ch]));
       for (int j = 0; j < numCoefs; j++) {
-        coefs[ch][j] = coefs1[ch][j] * exponents[ch][j] * mult;
+        coefs[ch][j] = coefs1[ch][j] * exponents[ch][j << (frameBits - blockBits) >> expBits[ch]] * mult;
       }
     }
     if (isMsStereo && channelCoded[1]) {
@@ -336,31 +316,31 @@ bool WmaCodec::parseBlock(BitStream& bitstream, int frameNum, int blockNum)
   } // next:
 
   MDCT* mdct = MDCT::get(blockBits + 1);
-  int fadeIn = std::min(blockSize, lastBlockSize); // XXX
-  int fadeOut = std::min(blockSize, nextBlockSize); // XXX
+  int fadeIn = std::min(blockSize, lastBlockSize);
+  int fadeOut = std::min(blockSize, nextBlockSize);
+  int start = blockSize > lastBlockSize ? (blockSize - lastBlockSize) / 2 : 0;
+  int numSamples = blockSize * 2;
   for (int ch = 0; ch < fmt.channels; ch++) {
     auto& output = sampleData->channels[ch];
-    output.resize(samplesDone + blockSize * 2);
-    std::vector<float> samples;
-    samples.reserve(blockSize * 2);
+    output.resize(samplesDone + numSamples);
+    std::vector<float> samples(numSamples, 0);
     if (channelCoded[ch]) {
       mdct->calcInverse(coefs[ch], samples);
       float step = M_PI / 2.0 / fadeIn;
       for (int i = 0; i < fadeIn; i++) {
-        //samples[i] *= std::sin(i * step);
-        samples[i] *= std::sin((i + 1) * step);
+        samples[start + i] *= std::sin((i + 1) * step);
       }
       step = M_PI / 2.0 / fadeOut;
-      for (int i = 2*blockSize - fadeOut; i < 2*blockSize; i++) {
-        samples[i] *= std::sin((2*blockSize - i - 1) * step);
+      for (int i = numSamples - fadeOut; i < numSamples; i++) {
+        samples[i] *= std::sin((numSamples - i - 1) * step);
       }
-      for (int i = 0; i < 2 * blockSize; i++) {
+      for (int i = 0; i < numSamples; i++) {
         output[samplesDone + i] += clamp<int16_t>(samples[i], -0x7FFF, 0x7FFF);
       }
     }
   }
 
-  samplesDone += blockSize; // 2*blockSize - fadeOut;
+  samplesDone += blockSize;
   lastBlockSize = blockSize;
   blockBits = nextBlockBits;
   return true;
