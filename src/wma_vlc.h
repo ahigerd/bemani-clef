@@ -69,7 +69,6 @@ struct VLC {
     bits(9)
   {
     const CoefVLCTable* coefVlc = &coef_vlcs[tableID];
-    //std::cerr << "VLC(" << tableID << ")" << std::endl;
     initCodes(coefVlc->n, coefVlc->huffcodes, coefVlc->huffbits);
 
     for (int i = 2, k = 0; k < coefVlc->max_level; k++) {
@@ -83,21 +82,15 @@ struct VLC {
   int extractFrom(BitStream& bitstream) const {
     static int outcount = 0;
     uint32_t prefix = 0;
-    uint32_t test = 0; // bitstream.peek(bits);
     uint32_t padding = 0x0002;
     for (int k = 0; k < 31; k++) {
       prefix = (prefix << 1) | bitstream.read();
-      //std::cerr << prefix << " " << (prefix | padding) << std::endl;
       auto iter = lookup.find(prefix | padding);
       if (iter != lookup.end()) {
-        //std::cerr << (++outcount) << " ** VLC(" << bits << ") idx=" << test << " code=" << iter->second << " n=" << (k+1) << " prefix=" << prefix << std::endl;
-        //std::cerr << "peek=" << prefix << std::endl;
-        //std::cerr << "\tVLC(" << bits << ") code=" << iter->second << std::endl;
         return iter->second;
       }
       padding <<= 1;
     }
-    //std::cerr << "????? " << test << " -> " << prefix << std::endl;
     throw std::runtime_error("invalid bitstream");
   }
 
@@ -112,7 +105,6 @@ private:
     for (uint16_t i = 0; i < n; i++) {
       padding = 1 << bits[i];
       lookup[code[i] | padding] = i;
-      //std::cerr << std::hex << code[i] << " -> " << (code[i] | padding) << " -> " << std::dec << i << std::endl;
     }
   }
 

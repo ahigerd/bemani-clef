@@ -4,6 +4,7 @@
 #include <cmath>
 #include <cstdint>
 #include <vector>
+#include "v_mdct.h"
 
 struct MDCT {
   static MDCT* get(int numBits);
@@ -15,9 +16,7 @@ struct MDCT {
   int numBits, mdctSize;
 
 private:
-  void inverse_mdct(float *buffer) const;
-  std::vector<uint16_t> bitReverse;
-  std::vector<float> A, B, C;
+  mdct_lookup v;
 };
 
 #endif

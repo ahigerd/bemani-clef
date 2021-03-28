@@ -2,7 +2,6 @@
 #include "utility.h"
 #include <algorithm>
 #include <stdexcept>
-#include <iostream>
 
 BitStream::BitStream(const BitStream::Iter8& begin, const BitStream::Iter8& end, int maxPacketSize)
 : ptr(begin), end(end), packetEnd(ptr), maxPacketSize(maxPacketSize), nextPadding(0), packetSeq(0), bitOffset(0), usingReservoir(false),
@@ -36,7 +35,6 @@ bool BitStream::read()
   uint8_t& o = usingReservoir ? resOffset : bitOffset;
 
   bool result = (*p >> (7 - o)) & 1;
-  //std::cerr << "read(1) = " << (result ? 1 : 0) << " " << (usingReservoir ? "r" : "-") << std::endl;
   o++;
   if (o == 8) {
     ++p;
@@ -45,7 +43,6 @@ bool BitStream::read()
   if (!usingReservoir) {
     bitsRead++;
   } else if (p == resEnd && o == resEndOffset) {
-    //std::cerr << "end reservoir" << std::endl;
     usingReservoir = false;
   }
   return result;
@@ -177,16 +174,13 @@ void BitStream::startPacket() {
     ptr += nextPadding;
     nextPadding = 0;
   }
-  //std::cerr << "BITSTREAM: new packet #" << (packetSeq++) << std::endl;
   packetStart = ptr;
   uint8_t packetFlags = *ptr++;
   if ((packetFlags & 0xe0) == 0x80) {
     // Standard ECC header present: skip it
     ptr += packetFlags & 0xf;
-    //packetStart = ptr;
     packetFlags = *ptr++;
   }
-  //std::cerr << "flags=" << (int)packetFlags << std::endl;
   uint8_t packetProps = *ptr++;
 
   uint8_t packetSizeSize = convertSize(packetFlags, 5);
@@ -197,8 +191,6 @@ void BitStream::startPacket() {
   // Ignore unused payload fields
   ptr += packetSizeSize + sequenceTypeSize;
   nextPadding = parseSize(ptr, 0, paddingSizeSize, 0);
-  //std::cerr << "packetSize=" << packetSize << " " << (int)packetSizeSize << std::endl;
-  //std::cerr << "paddingSize=" << nextPadding << " " << (int)paddingSizeSize << std::endl;
   ptr += paddingSizeSize + 6;
   packetEnd = packetStart + packetSize - nextPadding;
 
@@ -207,7 +199,6 @@ void BitStream::startPacket() {
   int offSizeSize = convertSize(packetProps, 2);
   int monSizeSize = convertSize(packetProps, 4);
   int stmSizeSize = convertSize(packetProps, 6);
-  // std::cerr << "sizes " << repSizeSize << " " << offSizeSize << " " << monSizeSize << " " << stmSizeSize << std::endl;
   uint32_t stream = parseSize(ptr, 0, stmSizeSize);
   ptr += stmSizeSize;
   uint32_t mon = parseSize(ptr, 0, monSizeSize);
@@ -216,10 +207,8 @@ void BitStream::startPacket() {
   ptr += offSizeSize;
   uint32_t repSize = parseSize(ptr, 0, repSizeSize);
   ptr += repSizeSize;
-  // std::cerr << "stm " << stream << " " << mon << " " << off << " " << repSize << std::endl;
   ptr += repSize;
   bitOffset = 0;
-  // std::cerr << "packet size: " << packetSize << " / " << (packetEnd - ptr) << std::endl;
 }
 
 uint32_t BitStream::bitsConsumed() const

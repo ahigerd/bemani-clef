@@ -43,6 +43,23 @@
 #include "mdct.h"
 #include "wma_vlc.h"
 
+static void dumpFloats(const char *name,
+                        int prec, const float *tab, int n)
+{
+    int i;
+
+    printf("%s[%d]:\n", name, n);
+    for (i = 0; i < n; i++) {
+        if ((i & 7) == 0)
+            printf("%4d: ", i);
+        printf(" %8.*f", prec, tab[i]);
+        if ((i & 7) == 7)
+            printf("\n");
+    }
+    if ((i & 7) != 0)
+        printf("\n");
+}
+
 // from wma.c:
 int ff_wma_total_gain_to_bits(int total_gain)
 {
@@ -61,6 +78,12 @@ int ff_wma_total_gain_to_bits(int total_gain)
 WmaCodec::WmaCodec(const WaveFormatEx& fmt, uint32_t maxPacketSize)
 : fmt(fmt), maxPacketSize(maxPacketSize)
 {
+  std::memset(exponents, 0, sizeof(exponents));
+  std::memset(coefs1, 0, sizeof(coefs1));
+  std::memset(coefs, 0, sizeof(coefs));
+  maxExponent[0] = maxExponent[1] = 0;
+  expBits[0] = expBits[1] = 0;
+
   frameBits = fmt.sampleRate > 22050 ? 11 : 10;
   frameLen = 1 << frameBits;
 
@@ -132,7 +155,7 @@ SampleData* WmaCodec::decodeRange(std::vector<uint8_t>::const_iterator start, st
   samplesDone = 0;
   while (bitstream.remaining()) {
     bool ok = parseSuperframe(bitstream);
-    if (!ok || samplesDone > 44100*7) {
+    if (!ok) {
       break;
     }
     bitstream.nextPacket();
@@ -145,6 +168,9 @@ bool WmaCodec::parseSuperframe(BitStream& bitstream)
 {
   bitstream.resetBitsConsumed();
   int sfID = bitstream.read(4);
+#ifdef VERBOSE
+  std::cerr << "decode_superframe " << sfID << std::endl;
+#endif
   int numFrames = bitReservoir ? bitstream.read(4) : 1;
   if (numFrames <= 0) {
     std::cerr << "bad frame count?" << std::endl;
@@ -154,7 +180,7 @@ bool WmaCodec::parseSuperframe(BitStream& bitstream)
   }
 
   for (int i = 0; i < fmt.channels; i++) {
-    sampleData->channels[i].reserve(sampleData->channels[i].size() + numFrames * frameLen);
+    sampleData->channels[i].resize(sampleData->channels[i].size() + (numFrames + 1) * frameLen);
   }
   int bitOffset = bitstream.read(byteOffsetBits + 3);
   if (bitOffset > bitstream.remaining()) {
@@ -193,6 +219,9 @@ bool WmaCodec::parseSuperframe(BitStream& bitstream)
 
 bool WmaCodec::parseFrame(BitStream& bitstream, int frameNum)
 {
+#ifdef VERBOSE
+  std::cerr << "decode_frame " << frameNum << " @ " << (samplesDone / 44100.0) << std::endl;
+#endif
   if (frameNum < 0) {
     bitstream.useReserved();
   }
@@ -217,6 +246,9 @@ bool WmaCodec::parseBlock(BitStream& bitstream, int frameNum, int blockNum)
   int blockSize = 1 << blockBits;
   int nextBlockBits = blockSizeBits ? frameBits - bitstream.read(blockSizeBits) : frameBits;
   int nextBlockSize = 1 << nextBlockBits;
+#ifdef VERBOSE
+  std::cerr << "decode_block " << blockNum << " last=" << lastBlockSize << " this=" << blockSize << " next=" << nextBlockSize << std::endl;
+#endif
   bool isMsStereo = fmt.channels == 2 ? bitstream.read(1) : false;
   bool channelCoded[2] = { false, false };
   for (int ch = 0; ch < fmt.channels; ch++) {
@@ -313,34 +345,34 @@ bool WmaCodec::parseBlock(BitStream& bitstream, int frameNum, int blockNum)
         coefs[1][j] = t;
       }
     }
-  } // next:
+  }
 
   MDCT* mdct = MDCT::get(blockBits + 1);
   int fadeIn = std::min(blockSize, lastBlockSize);
   int fadeOut = std::min(blockSize, nextBlockSize);
-  int start = blockSize > lastBlockSize ? (blockSize - lastBlockSize) / 2 : 0;
   int numSamples = blockSize * 2;
   for (int ch = 0; ch < fmt.channels; ch++) {
-    auto& output = sampleData->channels[ch];
-    output.resize(samplesDone + numSamples);
-    std::vector<float> samples(numSamples, 0);
     if (channelCoded[ch]) {
+      auto& output = sampleData->channels[ch];
+      std::vector<float> samples(numSamples, 0);
       mdct->calcInverse(coefs[ch], samples);
       float step = M_PI / 2.0 / fadeIn;
-      for (int i = 0; i < fadeIn; i++) {
-        samples[start + i] *= std::sin((i + 1) * step);
+      int i = 0;
+      int j = samplesDone;
+      int fadeInSample = 0;
+      int fadeOutSample = fadeIn;
+      for (; i < start + fadeIn; i++, j++, fadeInSample++, fadeOutSample--) {
+        int16_t outSample = output[j] * std::sin(fadeOutSample * step);
+        int16_t inSample = samples[i] * 0x8000 * std::sin(fadeInSample * step);
+        output[j] = clamp<int16_t>(outSample + inSample, -0x7FFF, 0x7FFF);
       }
-      step = M_PI / 2.0 / fadeOut;
-      for (int i = numSamples - fadeOut; i < numSamples; i++) {
-        samples[i] *= std::sin((numSamples - i - 1) * step);
-      }
-      for (int i = 0; i < numSamples; i++) {
-        output[samplesDone + i] += clamp<int16_t>(samples[i], -0x7FFF, 0x7FFF);
+      for (; i < numSamples; i++, j++) {
+        output[j] = samples[i] * 0x8000;
       }
     }
   }
 
-  samplesDone += blockSize;
+  samplesDone += numSamples - fadeOut;
   lastBlockSize = blockSize;
   blockBits = nextBlockBits;
   return true;
