@@ -37,6 +37,9 @@ int main(int argc, char** argv)
       auto sample = wma.decodeFile(infile);
       RiffWriter riff(sample->sampleRate, sample->channels.size() > 1);
       std::string filename = args.getString("output", infile + ".wav");
+      if (filename == "-") {
+        filename = "/dev/stdout";
+      }
       std::cerr << "writing to " << filename << std::endl;
       riff.open(filename);
       if (sample->channels.size() > 1) {
