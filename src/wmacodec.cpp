@@ -348,8 +348,7 @@ bool WmaCodec::parseBlock(BitStream& bitstream, int frameNum, int blockNum)
   }
 
   MDCT* mdct = MDCT::get(blockBits + 1);
-  int fadeIn = std::min(blockSize, lastBlockSize);
-  int fadeOut = std::min(blockSize, nextBlockSize);
+  int fadeIn = std::min(blockSize, lastBlockSize) - 1;
   int numSamples = blockSize * 2;
   for (int ch = 0; ch < fmt.channels; ch++) {
     if (channelCoded[ch]) {
@@ -359,9 +358,9 @@ bool WmaCodec::parseBlock(BitStream& bitstream, int frameNum, int blockNum)
       float step = M_PI / 2.0 / fadeIn;
       int i = 0;
       int j = samplesDone;
-      int fadeInSample = 0;
+      int fadeInSample = 1;
       int fadeOutSample = fadeIn;
-      for (; i < start + fadeIn; i++, j++, fadeInSample++, fadeOutSample--) {
+      for (; i < fadeIn; i++, j++, fadeInSample++, fadeOutSample--) {
         int16_t outSample = output[j] * std::sin(fadeOutSample * step);
         int16_t inSample = samples[i] * 0x8000 * std::sin(fadeInSample * step);
         output[j] = clamp<int16_t>(outSample + inSample, -0x7FFF, 0x7FFF);
@@ -372,7 +371,7 @@ bool WmaCodec::parseBlock(BitStream& bitstream, int frameNum, int blockNum)
     }
   }
 
-  samplesDone += numSamples - fadeOut;
+  samplesDone += blockSize;
   lastBlockSize = blockSize;
   blockBits = nextBlockBits;
   return true;
