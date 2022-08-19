@@ -29,6 +29,9 @@
 #include "utility.h"
 #include "wmadata.h"
 #include "bitstream.h"
+#include "sintable.h"
+#include "mdct.h"
+#include "wma_vlc.h"
 #include "codec/riffcodec.h"
 #include <unordered_map>
 #include <utility>
@@ -40,8 +43,6 @@
 #include <array>
 #include <cmath>
 #include <complex>
-#include "mdct.h"
-#include "wma_vlc.h"
 
 // from wma.c:
 int ff_wma_total_gain_to_bits(int total_gain)
@@ -80,7 +81,7 @@ WmaCodec::WmaCodec(const WaveFormatEx& fmt, uint32_t maxPacketSize)
   bitReservoir = flags & 2;
   bool useVBR = flags & 4;
   if (!bitReservoir || !expVLC || !(fmt.sampleRate == 22050 || fmt.sampleRate == 32000 || fmt.sampleRate == 44100)) {
-    throw std::runtime_error("Unsupported WMAv2");
+    throw WmaException("Unsupported WMAv2");
   }
 
   if (useVBR) {
@@ -307,25 +308,23 @@ void WmaCodec::parseBlock(BitStream& bitstream, int frameNum, int blockNum)
 
   MDCT* mdct = MDCT::get(blockBits + 1);
   int fadeIn = std::min(blockSize, lastBlockSize);
-  int fadeOut = std::min(blockSize, nextBlockSize);
+  SinTable* sin = SinTable::get(fadeIn);
   int numSamples = blockSize * 2;
   for (int ch = 0; ch < fmt.channels; ch++) {
     if (channelCoded[ch]) {
       auto& output = sampleData->channels[ch];
       std::vector<float> samples(numSamples, 0);
       mdct->calcInverse(coefs[ch], samples);
-      float step = M_PI / 2.0 / fadeIn;
       int i = (blockSize > lastBlockSize) ? (blockSize - lastBlockSize) >> 1 : 0;
       int j = i + samplesDone + ((frameLen - blockSize) >> 1);
       int fadeInSample = 0;
-      int fadeOutSample = fadeIn;
-      for (; fadeOutSample > 0; i++, j++, fadeInSample++, fadeOutSample--) {
-        int32_t outSample = output[j] * std::sin(fadeOutSample * step);
-        int32_t inSample = samples[i] * 0x8000 * std::sin(fadeInSample * step);
+      for (; fadeInSample < fadeIn; i++, j++, fadeInSample++) {
+        int32_t outSample = output[j] * sin->floatOut(fadeInSample);
+        int32_t inSample = samples[i] * sin->intIn(fadeInSample);
         output[j] = clamp<int16_t>(outSample + inSample, -0x7FFF, 0x7FFF);
       }
       for (; i < numSamples; i++, j++) {
-        output[j] = samples[i] * 0x8000;
+        output[j] = samples[i] * 0x7FFF;
       }
     }
   }

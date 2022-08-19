@@ -1,7 +1,5 @@
 #include "mdct.h"
 #include <unordered_map>
-#include <cstring>
-#include <iostream>
 
 MDCT* MDCT::get(int numBits) {
   static std::unordered_map<int, MDCT> cache;
@@ -21,6 +19,5 @@ void MDCT::calcInverse(float* coefs, std::vector<float>& output) const
   mdct_backward(&v, coefs, output.data());
   for (int i = 0; i < mdctSize * 2; i++) {
     output[i] /= -32768.0;
-    //output[i] = 0.5;
   }
 }
