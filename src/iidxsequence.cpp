@@ -1,5 +1,6 @@
 #include "iidxsequence.h"
 #include "asfcodec.h"
+#include "wmacodec.h"
 #include "codec/sampledata.h"
 #include "codec/riffcodec.h"
 #include "riffwriter.h"
@@ -73,7 +74,11 @@ bool IIDXSequence::loadS3P()
       if (!file->read(reinterpret_cast<char*>(wmaData.data()), wmaData.size())) {
         return false;
       }
-      wmaCodec.decode(wmaData, samplesRead + 1);
+      try {
+        wmaCodec.decode(wmaData, samplesRead + 1);
+      } catch (WmaException& w) {
+        std::cerr << "Ignoring error in sample #" << samplesRead << ": " << w.what() << std::endl;
+      }
       samplesRead++;
     }
     // Succeeded if all samples were read
