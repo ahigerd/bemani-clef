@@ -28,8 +28,14 @@
 
 #include "codec/riffcodec.h"
 #include "bitstream.h"
+#include <stdexcept>
 class VLC;
 class MDCT;
+
+class WmaException : public std::runtime_error {
+public:
+  WmaException(const std::string& message);
+};
 
 class WmaCodec : public ICodec {
 public:
@@ -38,9 +44,9 @@ public:
   virtual SampleData* decodeRange(std::vector<uint8_t>::const_iterator start, std::vector<uint8_t>::const_iterator end, uint64_t sampleID = 0);
 
 private:
-  bool parseSuperframe(BitStream& bitstream);
-  bool parseFrame(BitStream& bitstream, int frameNum);
-  bool parseBlock(BitStream& bitstream, int frameNum, int blockNum);
+  void parseSuperframe(BitStream& bitstream);
+  void parseFrame(BitStream& bitstream, int frameNum);
+  void parseBlock(BitStream& bitstream, int frameNum, int blockNum);
 
   WaveFormatEx fmt;
   SampleData* sampleData;
@@ -51,9 +57,9 @@ private:
   uint32_t frameBits, frameLen;
   uint32_t numCoefsBase, numCoefs;
   uint8_t blockSizeBits, byteOffsetBits;
-  bool bitReservoir : 1;
-  bool hasReservedFrame : 1;
-  bool useReservedFrame : 1;
+  bool bitReservoir;
+  bool hasReservedFrame;
+  bool useReservedFrame;
 
   float coefs1[2][2048], coefs[2][2048];
   float exponents[2][2048], maxExponent[2];
@@ -64,4 +70,3 @@ private:
 };
 
 #endif
-

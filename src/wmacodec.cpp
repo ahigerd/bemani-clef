@@ -43,23 +43,6 @@
 #include "mdct.h"
 #include "wma_vlc.h"
 
-static void dumpFloats(const char *name,
-                        int prec, const float *tab, int n)
-{
-    int i;
-
-    printf("%s[%d]:\n", name, n);
-    for (i = 0; i < n; i++) {
-        if ((i & 7) == 0)
-            printf("%4d: ", i);
-        printf(" %8.*f", prec, tab[i]);
-        if ((i & 7) == 7)
-            printf("\n");
-    }
-    if ((i & 7) != 0)
-        printf("\n");
-}
-
 // from wma.c:
 int ff_wma_total_gain_to_bits(int total_gain)
 {
@@ -97,7 +80,7 @@ WmaCodec::WmaCodec(const WaveFormatEx& fmt, uint32_t maxPacketSize)
   bitReservoir = flags & 2;
   bool useVBR = flags & 4;
   if (!bitReservoir || !expVLC || !(fmt.sampleRate == 22050 || fmt.sampleRate == 32000 || fmt.sampleRate == 44100)) {
-    throw std::runtime_error("Unsupported WMAv2");;
+    throw std::runtime_error("Unsupported WMAv2");
   }
 
   if (useVBR) {
@@ -154,27 +137,20 @@ SampleData* WmaCodec::decodeRange(std::vector<uint8_t>::const_iterator start, st
 
   samplesDone = 0;
   while (bitstream.remaining()) {
-    bool ok = parseSuperframe(bitstream);
-    if (!ok) {
-      break;
-    }
+    parseSuperframe(bitstream);
     bitstream.nextPacket();
   }
 
   return sampleData;
 }
 
-bool WmaCodec::parseSuperframe(BitStream& bitstream)
+void WmaCodec::parseSuperframe(BitStream& bitstream)
 {
   bitstream.resetBitsConsumed();
   int sfID = bitstream.read(4);
-#ifdef VERBOSE
-  std::cerr << "decode_superframe " << sfID << std::endl;
-#endif
   int numFrames = bitReservoir ? bitstream.read(4) : 1;
   if (numFrames <= 0) {
-    std::cerr << "bad frame count?" << std::endl;
-    return false;
+    throw WmaException("bad frame count in superframe");
   } else if (bitReservoir && !bitstream.bitsReserved()) {
     numFrames--;
   }
@@ -184,14 +160,12 @@ bool WmaCodec::parseSuperframe(BitStream& bitstream)
   }
   int bitOffset = bitstream.read(byteOffsetBits + 3);
   if (bitOffset > bitstream.remaining()) {
-    std::cerr << "invalid bit offset " << bitOffset << " / " << bitstream.remaining() << std::endl;
-    return false;
+    throw WmaException("invalid bit offset");
   }
 
   int pos = bitOffset + byteOffsetBits + 11;
   if (pos > fmt.blockAlign << 3) {
-    std::cerr << "invalid bit offset b" << std::endl;
-    return false;
+    throw WmaException("invalid bit offset");
   }
 
   int startFrame = 0;
@@ -206,49 +180,35 @@ bool WmaCodec::parseSuperframe(BitStream& bitstream)
       int bitsRead = bitstream.read(blockSizeBits);
       blockBits = frameBits - bitsRead;
     }
-    bool ok = parseFrame(bitstream, i);
-    if (!ok) {
-      return false;
-    }
+    parseFrame(bitstream, i);
   }
   if (bitReservoir) {
     bitstream.reserve(fmt.blockAlign * 8 - bitstream.bitsConsumed());
   }
-  return true;
 }
 
-bool WmaCodec::parseFrame(BitStream& bitstream, int frameNum)
+void WmaCodec::parseFrame(BitStream& bitstream, int frameNum)
 {
-#ifdef VERBOSE
-  std::cerr << "decode_frame " << frameNum << " @ " << (samplesDone / 44100.0) << std::endl;
-#endif
   if (frameNum < 0) {
     bitstream.useReserved();
   }
   int bitsRemaining = frameLen;
   int blockNum = 0;
   while (bitsRemaining > 0) {
-    bool ok = parseBlock(bitstream, frameNum, blockNum);
-    if (!ok) {
-      return false;
-    }
+    parseBlock(bitstream, frameNum, blockNum);
     ++blockNum;
     bitsRemaining -= lastBlockSize;
   }
   if (frameNum < 0) {
     bitstream.flushReserved();
   }
-  return true;
 }
 
-bool WmaCodec::parseBlock(BitStream& bitstream, int frameNum, int blockNum)
+void WmaCodec::parseBlock(BitStream& bitstream, int frameNum, int blockNum)
 {
   int blockSize = 1 << blockBits;
   int nextBlockBits = blockSizeBits ? frameBits - bitstream.read(blockSizeBits) : frameBits;
   int nextBlockSize = 1 << nextBlockBits;
-#ifdef VERBOSE
-  std::cerr << "decode_block " << blockNum << " last=" << lastBlockSize << " this=" << blockSize << " next=" << nextBlockSize << std::endl;
-#endif
   bool isMsStereo = fmt.channels == 2 ? bitstream.read(1) : false;
   bool channelCoded[2] = { false, false };
   for (int ch = 0; ch < fmt.channels; ch++) {
@@ -294,7 +254,6 @@ bool WmaCodec::parseBlock(BitStream& bitstream, int frameNum, int blockNum)
         int tindex = (ch == 1 && isMsStereo) ? 1 : 0;
         VLC* vlc = coefVlc[tindex];
         std::memset(ptr, 0, frameLen * sizeof(float));
-        // ff_wma_run_level_decode
         int sign, offset;
         uint32_t coefMask = frameLen - 1;
         for (offset = 0; offset < numCoefs; offset++) {
@@ -316,8 +275,7 @@ bool WmaCodec::parseBlock(BitStream& bitstream, int frameNum, int blockNum)
           }
         }
         if (offset > numCoefs) {
-          std::cerr << "RLE overflow" << std::endl;
-          return false;
+          throw WmaException("RLE overflow");
         }
       }
     }
@@ -348,7 +306,8 @@ bool WmaCodec::parseBlock(BitStream& bitstream, int frameNum, int blockNum)
   }
 
   MDCT* mdct = MDCT::get(blockBits + 1);
-  int fadeIn = std::min(blockSize, lastBlockSize) - 1;
+  int fadeIn = std::min(blockSize, lastBlockSize);
+  int fadeOut = std::min(blockSize, nextBlockSize);
   int numSamples = blockSize * 2;
   for (int ch = 0; ch < fmt.channels; ch++) {
     if (channelCoded[ch]) {
@@ -356,13 +315,13 @@ bool WmaCodec::parseBlock(BitStream& bitstream, int frameNum, int blockNum)
       std::vector<float> samples(numSamples, 0);
       mdct->calcInverse(coefs[ch], samples);
       float step = M_PI / 2.0 / fadeIn;
-      int i = 0;
-      int j = samplesDone;
-      int fadeInSample = 1;
+      int i = (blockSize > lastBlockSize) ? (blockSize - lastBlockSize) >> 1 : 0;
+      int j = i + samplesDone + ((frameLen - blockSize) >> 1);
+      int fadeInSample = 0;
       int fadeOutSample = fadeIn;
-      for (; i < fadeIn; i++, j++, fadeInSample++, fadeOutSample--) {
-        int16_t outSample = output[j] * std::sin(fadeOutSample * step);
-        int16_t inSample = samples[i] * 0x8000 * std::sin(fadeInSample * step);
+      for (; fadeOutSample > 0; i++, j++, fadeInSample++, fadeOutSample--) {
+        int32_t outSample = output[j] * std::sin(fadeOutSample * step);
+        int32_t inSample = samples[i] * 0x8000 * std::sin(fadeInSample * step);
         output[j] = clamp<int16_t>(outSample + inSample, -0x7FFF, 0x7FFF);
       }
       for (; i < numSamples; i++, j++) {
@@ -374,5 +333,10 @@ bool WmaCodec::parseBlock(BitStream& bitstream, int frameNum, int blockNum)
   samplesDone += blockSize;
   lastBlockSize = blockSize;
   blockBits = nextBlockBits;
-  return true;
+}
+
+WmaException::WmaException(const std::string& message)
+: std::runtime_error(message)
+{
+  // initializers only
 }
