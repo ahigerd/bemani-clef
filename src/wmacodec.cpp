@@ -45,7 +45,7 @@
 #include <complex>
 
 // from wma.c:
-int ff_wma_total_gain_to_bits(int total_gain)
+static inline int ff_wma_total_gain_to_bits(int total_gain)
 {
     if (total_gain < 15)
         return 13;

@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>The WMAv2 File Format, Quick and Dirty</title>
+  <style>
+    body {
+      padding: 4em;
+      font-family: sans-serif;
+      font-size: 12pt;
+    }
+    h1, h2, h3, h4 {
+      text-decoration: underline;
+    }
+    h1 {
+      margin: -1em 0 0.5em -1.5em;
+    }
+    h2 {
+      margin: 1em 0 0.1em -1.5em;
+    }
+    h3 {
+      font-size: 16pt;
+      margin: 1em 0 0.1em -1em;
+    }
+    h4 {
+      margin: 1em 0 0.1em -0.5em;
+    }
+    code {
+      background-color: #E0E0E0;
+      font-family: monospace;
+    }
+    table {
+      border-collapse: collapse;
+      background-color: white;
+      margin: 0.5em;
+    }
+    th, td {
+      padding: 4px;
+      border: 1px solid black;
+    }
+    th {
+      background-color: #D0D0D0;
+    }
+    tr:nth-child(2n+0) {
+      background-color: #E8E8E8;
+    }
+    pre {
+      border: 1px solid #C0C0C0;
+      background-color: #E0E0E0;
+      padding: 16px;
+    }
+    strong {
+      font-family: monospace;
+      font-size: 12pt;
+    }
+    p {
+      margin: 0 0 1em 0;
+    }
+  </style>
+</head>
+<body>
+<h1>The WMAv2 File Format, Quick and Dirty</h1>
+
+<p>FFmpeg is historically the only open-source implementation of WMA, and there is no public documentation of the format. FFmpeg's internals are poorly documented, written in a heavily optimized manner, and are organized to suit FFmpeg's use case. This document attempts to extract an understanding of the WMA file format.</p>
+
+<p>WMA is stored in ASF. ASF is overengineered. Fortunately, this overengineering comes with one nice advantage: relevant key locations are tagged with 128-bit GUIDs, so we don't have to bother parsing the ASF format and can just scan for the GUID.</p>
+
+<p>The only things documented in this file are the things that actually matter for parsing common WMAv2 files in ASFv2 containers. Noise coding is enabled only at very low bitrates. As such, this will not be documented here.</p>
+
+<p>Code examples are presented for explanatory purposes. They are not intended to be valid C or C++ code and are not optimized for performance.</p>
+
+<p>Offsets are in decimal bytes unless otherwise noted, with offset 0 being the first byte following the object GUID.</p>
+
+<h3>Field sizes</h3>
+<p>Some fields below are "size types." This is a two-bit field that says how long some other fields are. The associated fields are <code>(1 &lt;&lt; sizetype) - 1</code> bytes long. A size type of 0 means that the field is not stored at all.</p>
+
+<p>Other fields with variable sizes may have their sizes computed or stored directly.</p>
+
+<p>If a field has a length of 0, then the tables below will indicate the default value that the field holds.</p>
+
+<p>Each field size will be documented with a code in <strong>BOLD</strong> that will be used later to indicate the length of the fields that use it.</p>
+
+<h2>File Properties</h2>
+<p><strong>GUID:</strong> <code>{ a1dcab8c-47a9-cf11-8ee4-00c00c205365 }</code></p>
+<table>
+<thead>
+  <tr> <th>Offset</th> <th>Type</th> <th>Meaning</th> </tr>
+</thead>
+<tbody>
+  <tr> <td>48</td> <td>uint64_t</td> <td>Duration in 100ns units</td> </tr>
+  <tr> <td>80</td> <td>uint32_t</td> <td>Maximum packet size <strong>MPS</strong> </td> </tr>
+</tbody>
+</table>
+
+<h2>Stream Properties</h2>
+<p><strong>GUID:</strong> <code>{ 9107dcb7-b7a9-cf11-8ee6-00c00c205365 }</code></p>
+<p>A <a href="https://docs.microsoft.com/en-us/windows/win32/api/mmeapi/ns-mmeapi-waveformatex" rel="nofollow">WAVEFORMATEX</a> structure is embedded in the stream properties object starting at offset 62.</p>
+
+<table>
+<thead>
+<tr> <th>Offset</th> <th>Type</th> <th>Meaning</th> </tr>
+</thead>
+<tbody>
+<tr> <td>62</td> <td>uint16_t</td> <td>If this isn't 0x0161, this isn't a WMAv2 file.</td> </tr>
+<tr> <td>64</td> <td>uint16_t</td> <td>Number of channels (1 for mono, 2 for stereo)</td> </tr>
+<tr> <td>66</td> <td>uint32_t</td> <td>Sample rate</td> </tr>
+<tr> <td>70</td> <td>uint32_t</td> <td>Byte rate</td> </tr>
+<tr> <td>74</td> <td>uint16_t</td> <td>Block size</td> </tr>
+<tr> <td>84</td> <td>uint16_t</td> <td>WMA format flags:
+  <table>
+  <thead>
+    <tr> <th>Bit(s)</th> <th>Meaning</th> </tr>
+  </thead>
+  <tbody>
+    <tr> <td>0 (LSB)</td> <td>Exponent encoding type (0=LSP, 1=VLC)</td> </tr>
+    <tr> <td>1</td> <td>Use bit reservoir</td> </tr>
+    <tr> <td>2</td> <td>Use variable block length</td> </tr>
+    <tr> <td>3 - 4</td> <td>Additional block lengths (if variable)</td>
+  </tr>
+  </tbody>
+  </table>
+</td> </tr>
+</tbody>
+</table>
+
+<p>Only the variation that uses a bit reservoir and VLC encoding is documented here. Furthermore, while some information below includes low sample rates, only 22050Hz, 32000Hz, and 44100Hz are fully documented here.  Below, "VBL" refers to the "use variable block length" and "additional block lengths" flags.</p>
+
+<h3>Derived properties</h3>
+<p>A number of important values are derived from the above properties.</p>
+<ul style='float:left;margin: 0 2em 0 0'>
+<li> <strong>BPS</strong>: Bits per sample. <code>8 * byte rate / (channels * sample rate)</code> </li>
+<li> <strong>MLS</strong>: Base (maximum) length size, in bits. Derived from sample rate. See table at right.</li>
+<li> <strong>MBS</strong>: Base (maximum) block size, in bits. <code>1 &lt;&lt; MLS</code>.</li>
+<li> <strong># sizes</strong>: Derived from byte rate, channels, and VBL. See table below.</li>
+<li> <strong>BSZ</strong>: The length of the block size field. See table below.</li>
+<li> <strong>BOB</strong>: The length of the bit offset field. <code>log2(ceil(BPS * MBS / 8)) + 5</code></li>
+<li> <strong>NC</strong>: Maximum number of encoded spectral coefficients. <code>round(MBS * .91)</code>
+</li>
+
+</ul>
+<table style='margin: 1em'>
+<thead>
+  <tr> <th>Sample Rate</th> <th><strong>MLS</strong></th> </tr>
+</thead>
+<tbody>
+  <tr> <td>8000 Hz</td> <td>9</td> </tr>
+  <tr> <td>11025 Hz</td> <td>9</td> </tr>
+  <tr> <td>16000 Hz</td> <td>9</td> </tr>
+  <tr> <td>22050 Hz</td> <td>10</td> </tr>
+  <tr> <td>32000 Hz</td> <td>11</td> </tr>
+  <tr> <td>44100 Hz</td> <td>11</td> </tr>
+</tbody>
+</table>
+
+<br style='clear:all' />
+<table>
+<thead>
+  <tr> <th>Byte Rate</th> <th>Channels</th> <th>VBL</th> <th># Sizes</th> <th><strong>BSZ</strong></th>
+</tr>
+</thead>
+<tbody>
+  <tr> <td>any</td> <td>any</td> <td>off</td> <td>1</td> <td>0</td> </tr>
+  <tr> <td>&lt; 4000</td> <td>1</td> <td>1</td> <td>2</td> <td>1</td> </tr>
+  <tr> <td>&lt; 4000</td> <td>1</td> <td>2</td> <td>3</td> <td>2</td> </tr>
+  <tr> <td>&lt; 4000</td> <td>1</td> <td>3</td> <td>4</td> <td>2</td> </tr>
+  <tr> <td>&gt;= 4000</td> <td>1</td> <td>1</td> <td>4</td> <td>3</td> </tr>
+  <tr> <td>&gt;= 4000</td> <td>1</td> <td>2</td> <td>5</td> <td>4</td> </tr>
+  <tr> <td>&gt;= 4000</td> <td>1</td> <td>3</td> <td>5</td> <td>4</td> </tr>
+  <tr> <td>&lt; 8000</td> <td>2</td> <td>1</td> <td>2</td> <td>1</td> </tr>
+  <tr> <td>&lt; 8000</td> <td>2</td> <td>2</td> <td>3</td> <td>2</td> </tr>
+  <tr> <td>&lt; 8000</td> <td>2</td> <td>3</td> <td>4</td> <td>2</td> </tr>
+  <tr> <td>&gt;= 8000</td> <td>2</td> <td>1</td> <td>4</td> <td>3</td> </tr>
+  <tr> <td>&gt;= 8000</td> <td>2</td> <td>2</td> <td>5</td> <td>4</td> </tr>
+  <tr> <td>&gt;= 8000</td> <td>2</td> <td>3</td> <td>5</td> <td>4</td> </tr>
+</tbody>
+</table>
+
+<h2>Compressed Data</h2>
+<p><strong>GUID:</strong> <code>{ 3626b275-8e66-cf11-a6d9-00aa0062ce6c }</code></p>
+<table>
+<thead>
+  <tr> <th>Offset</th> <th>Type</th> <th>Meaning</th> </tr>
+</thead>
+<tbody>
+  <tr> <td>0</td> <td>uint64_t</td> <td>Total compressed size + 16</td> </tr>
+  <tr> <td>34</td> <td>packet[]</td> <td>Compressed data</td> </tr>
+</tbody>
+</table>
+
+<h3>packet</h3>
+<h4>ECC Packet</h4>
+<p>If the first byte of the packet is 0x82, it contains standard a ECC preamble. The preamble is three bytes long, including that first byte. It should be ignored.</p>
+
+<h4>Nonstandard Packets</h4>
+<p>If the first byte of the packet (after the ECC preamble, if present) has the high bit set and it isn't 0x82, the file does not conform to the ASF standard and should be rejected.</p>
+
+<h4>Data Packet</h4>
+<p>If the first byte of the packet (after the ECC preamble, if present) has the high bit unset, it's a data packet. The first two bytes are flags, and the only reason we care about most of them is to know how much junk to skip.</p>
+
+<table>
+<thead>
+  <tr> <th>Bit(s)</th> <th>Meaning</th> </tr>
+</thead>
+<tbody>
+  <tr> <td>15 (MSB)</td> <td>0 means it's a data packet</td> </tr>
+  <tr> <td>14 - 13</td> <td>Size type <strong>PL</strong> </td> </tr>
+  <tr> <td>11 - 12</td> <td>Unused, must be 00</td> </tr>
+  <tr> <td>9 - 10</td> <td>Size type <strong>F1</strong> </td> </tr>
+  <tr> <td>8</td> <td>Multiple payload flag (not documented here)</td> </tr>
+  <tr> <td>6 - 7</td> <td>Unused</td> </tr>
+  <tr> <td>4 - 5</td> <td>Size type <strong>F2</strong> </td> </tr>
+  <tr> <td>2 - 3</td> <td>Size type <strong>F3</strong> </td> </tr>
+  <tr> <td>0 - 1</td> <td>Size type <strong>RD</strong> </td> </tr>
+</tbody>
+</table>
+
+<p>Then the rest of the packet header is as follows:</p>
+<table>
+<thead>
+  <tr> <th>Length</th> <th>Meaning</th> </tr>
+</thead>
+<tbody>
+  <tr> <td><strong>PL</strong></td> <td>Packet length <strong>PD</strong> (default</td> </tr>
+  <tr> <td><strong>F1</strong></td> <td>Padding size <strong>PS</strong></td> </tr>
+  <tr> <td>7</td> <td>Useless stuff</td> </tr>
+  <tr> <td><strong>F2</strong></td> <td>Useless stuff</td> </tr>
+  <tr> <td><strong>F3</strong></td> <td>Useless stuff</td> </tr>
+  <tr> <td><strong>RL</strong></td> <td>Useless stuff length <strong>RD</strong> </td> </tr>
+  <tr> <td><strong>RD</strong></td> <td>Useless stuff</td> </tr>
+</tbody>
+</table>
+
+<p>If <strong>RD</strong> is 1, that means this file uses a compression scheme not documented here.</p>
+
+<p>The payload begins after this header. The payload ends <strong>PD</strong> bytes after the start of the current packet, followed by <strong>PS</strong> bytes of padding that must be skipped.</p>
+
+<h2>Bitstream Format</h2>
+<p>The content of the data packet payloads is opaque from the perspective of ASF. Once all of the packet framing is skipped, what remains is the WMA bitstream itself.</p>
+
+<p>Since this is a bitstream, all lengths from here on will be in bits. As with the size types above, fields with variable lengths will be notated with a two-character code in <strong>BOLD</strong> to reference the definition of that length.</p>
+
+<p>A format of "VLC" means that the field is stored in variable-length Huffman coding. A format of "LSP" means that the field is stored using line spectral pairs. A format of "RLE" means that the field is stored using run-level encoding. VLC and RLE will all be documented at the bottom of the file. LSP appears to only be used in low-bitrate files and isn't documented here.</p>
+
+<h3>Superframe</h3>
+<p>The bitstream is a sequence of superframes concatenated together.</p>
+
+<table>
+<thead>
+  <tr> <th>Length / Type</th> <th>Meaning</th> </tr>
+</thead>
+<tbody>
+  <tr> <td>4 bits</td> <td>Superframe ID (unused)</td> </tr>
+  <tr> <td>4 bits</td> <td>Number of frames <strong>NF</strong> </td> </tr>
+  <tr> <td><strong>BOB</strong></td> <td>bit offset <strong>BO</strong> </td> </tr>
+  <tr> <td><strong>BO</strong></td> <td>bit reservoir continuation</td> </tr>
+  <tr> <td><strong>BSZ</strong></td> <td>Previous block size index <strong>PSI</strong> (default 0)</td> </tr>
+  <tr> <td><strong>BSZ</strong></td> <td>Block size index <strong>SI</strong> (default 0)</td> </tr>
+  <tr> <td>frame[<strong>NF</strong>]</td> <td>Frame data</td> </tr>
+</tbody>
+</table>
+
+<p>Each superframe can be decoded independently and produces no more than <strong>MBS</strong> * <strong>NF</strong> output samples.</p>
+
+<p>The last frame in a superframe may be incomplete. If this happens, the rest of the data needed to decode the frame is stored in the "bit reservoir continuation" field of the next superframe.</p>
+
+<p>The number of frames in a superframe may be 0. If this occurs, the only output of the superframe comes from the bit reservoir. It is an error for the bit reservoir to contain 8 bits or less in this case.</p>
+
+<p>After decoding the last frame in the superframe, skip ahead to the next ASF data packet, ignoring any data that might remain.</p>
+
+<h3>Frame</h3>
+<p>Each frame is <strong>MBS</strong> bits long and produces up to <strong>MBS</strong> output samples.</p>
+
+<table>
+<thead>
+  <tr> <th>Length / Type</th> <th>Meaning</th> </tr>
+</thead>
+<tbody>
+  <tr> <td>block[]</td> <td>Block data</td> </tr>
+</tbody>
+</table>
+
+<h3>Block</h3>
+<p>Entries marked with (L) / (R) are for stereo channels. In a mono file, skip any fields marked with (R). Per-channel entries marked with + are only present if the channel is active. Non-per-channel entries marked with + are only present if at least one channel is active.</p>
+
+<p>Inactive channels are silent and should be treated as having all coefficients set to 0 and produce all 0 samples.</p>
+
+<table>
+<thead>
+  <tr> <th>Length / Type</th> <th>Meaning</th> </tr>
+</thead>
+<tbody>
+  <tr> <td><strong>BSZ</strong></td> <td>Next block size index <strong>NSI</strong> (default 0)</td> </tr>
+  <tr> <td>1 (R)</td> <td>Is joint stereo?</td> </tr>
+  <tr> <td>1 (L)</td> <td>Left channel active</td> </tr>
+  <tr> <td>1 (R)</td> <td>Right channel active</td> </tr>
+  <tr> <td> <strong>7X</strong>[] (L+)</td> <td>Left: Channel gain</td> </tr>
+  <tr> <td> <strong>7X</strong>[] (R+)</td> <td>Right: Channel gain</td> </tr>
+  <tr> <td>1 if <strong>SI</strong> &gt; 0 (+)</td> <td>Do exponents follow? (default 1)</td> </tr>
+  <tr> <td>LSP[] or VLC[] (L+)</td> <td>Left: New exponents</td> </tr>
+  <tr> <td>LSP[] or VLC[] (R+)</td> <td>Right: New exponents</td> </tr>
+  <tr> <td>RLE (L+)</td> <td>Left: Spectral coefficients</td> </tr>
+  <tr> <td>RLE (R+)</td> <td>Right: Spectral coefficients</td> </tr>
+</tbody>
+</table>
+
+<p>Note that the size of the block is not stored within the block. Each block stores the size of the block that will follow it. This is necessary for the windowing operation at the end.</p>
+
+<p>The total size of the block data including the size index is <strong>BS</strong> = <code>MBS &gt;&gt; SI</code>.</p>
+
+<p><strong>7X</strong>: The gain values are stored like this: Read 7-bit chunks until you get a value that isn't 127, and then sum them together. The numeric value doesn't mean anything by itself but will be used to calculate the actual gain later.</p>
+
+<p>If exponents are not stored for a block, they are reused from the previous block. Store the value of <strong>SI</strong> along with the exponents ("exponent size index" <strong>ESI</strong>) when they are read, because <strong>SI</strong> may change from block to block but <strong>ESI</strong> should remain fixed until new exponents are read.</p>
+
+<p>Exponents are stored as LSP or VLC depending on the "exponent encoding type" flag in the stream properties. (LSP is not documented here.) There are a total of <strong>BS</strong> exponents per channel per block. To read them using VLC, use the following steps:</p>
+
+<pre>pos = 0;
+power = 36;
+for (k = 0; pos < BS; k++) {
+  code = readVLC();
+  power += (code - 60);
+  value = exp10(power / 16.0);
+  for (i = 0; i &lt; exponent_band_SAMPLERATE[ESI][k]; i++, pos++) {
+    exponents[pos] = value;
+  }
+}</pre>
+
+<p>The <code>exponent_band</code> tables are derived from FFmpeg's <a href="https://github.com/FFmpeg/FFmpeg/blob/master/libavcodec/wmadata.h">wmadata.h</a>. For each sample rate, this file contains bands for ESI = 2, 3, and 4; the first value in each sub-array is the number of entries in that band. The bands for ESI = 0 and 1 require numbers that don't fit in a uint8_t so ffmpeg computes them instead of hardcoding them:</p>
+
+<pre>last = 0;
+for (i = 0; i < 25; i++) {
+  pos = (ff_wma_critical_freqs[i] * 2 * (MBS >> ESI) + SAMPLERATE * 2);
+  pos = min(MBS >> ESI, (pos / SAMPLERATE) &amp; ~0x3);
+  exponent_band_SAMPLERATE[ESI][i] = pos - last;
+  last = pos;
+}</pre>
+
+<p>The critical frequencies are hard-coded.</p>
+
+<p>For reasonable bitrates, spectral coefficients are stored as VLC using table 4, or table 5 if it's the second channel in joint stereo. See "Run-Level Encoding (RLE)" below for parsing details.</p>
+
+<h3>MDCT</h3>
+<p>After each block is loaded it can be transformed to sample data using inverse MDCT. The channels are decoded separately, but in joint stereo mode there is a mixing step between calculating the coefficients and outputting the samples.</p>
+
+<h4>Calculating the iMDCT coefficients</h4>
+<p>First, calculate a scaling factor:</p>
+<pre>scale[chan] = 2 * exp10(gain[chan] * 0.05) / BS / max(exponents[chan]);</pre>
+
+<p>Then, create the iMDCT coefficient array. It is <strong>MBS</strong> entries long, all initialized to 0. If the channel is active, fill the array with an algorithm like this (there may be unmodified entries at the end of the array):</p>
+<pre>for (i = 0; i &lt; MLS; i++) {
+  mdct[chan][i] = scale[chan] * spectral[chan][i] * exponent[chan][i &lt;&lt; SI &gt;&gt; ESI[chan]];
+}</pre>
+
+<p>If the block is stored in joint stereo, the first and second channels are stored as (left + right) and (left - right) respectively. This can be undone by "butterflying" the data between the two channels:</p>
+<pre>for (i = 0; i &lt; MBS; i++) {
+  left = mdct[0][i] + mdct[1][i];
+  right = mdct[0][i] - mdct[1][i];
+  mdct[0][i] = left;
+  mdct[1][i] = right;
+}</pre>
+
+<p>Inverse MDCT is formally defined using a formula based on a sum of cosines. This is rather inefficient even though it's simple to define, and efficient DFT algorithms ("FFTs") are common, so this document will present a technique for computing inverse MDCT in terms of DFT.</p>
+
+<p>Interpret the MDCT coefficient arrays as (real, imaginary) pairs, which will be noted in the following code as <strong>cmdct</strong>, which is <strong>CS</strong> = <strong>BS</strong>/2 complex numbers long. The output buffer is a matching complex array initialized to 0.</p>
+
+<p>The operation has some symmetries so we can save time by processing the middle half of the data. First, perform a permutation operation:</p>
+<pre>int permuteRadixInner(int i, int n) {
+  if (n &lt;= 2) return i &amp; 1;
+  if ((i &amp; (n &gt;&gt; 1)) == 0) return permuteRadixInner(i, n &gt;&gt; 1) * 2;
+  if ((i &amp; (n &gt;&gt; 2)) == 0) return permuteRadixInner(i, n &gt;&gt; 2) * 4 - 1;
+  return permuteRadixInner(i, n &gt;&gt; 2) * 4 + 1;
+}
+
+int permuteRadix(int i) {
+  int bit = CS &gt;&gt; 2;
+  return -permuteRadixInner(i, bit) &amp; (bit - 1);
+}
+
+for (i = 0, j = CS/2 - 1; j &gt;= 0; i++, j--) {
+  output[permuteRadix(i)] = complex(cmdct[j].imag, cmdct[i].real) * polar(1, i * pi / CS);
+}</pre>
+
+<p>Then, perform DFT on the output buffer. You can use whatever FFT implementation you like, but a simple implementation looks like this:</p>
+<pre>fft(complex* data, int len) {
+  if (len &gt; 2) {
+    len = len / 2;
+    midpoint = data + len;
+    fft(data, len);
+    fft(midpoint, len);
+    for (i = 0; i &lt; len; i++) {
+      t = polar(1, -i * pi / len) * midpoint[i];
+      midpoint[i] = data[i] - t;
+      data[i] = midpoint[i] + t;
+    }
+  }
+}
+
+fft(&amp;output[CS/4], CS/2);</pre>
+
+<p>Finally, perform a different permutation and copy the data according to the aforementioned symmetry:</p>
+<pre>for (i = 0; i &lt; CS/4; i++) {
+  left = CS/4 - i - 1;
+  right = CS/4 + i;
+  c0 = output[left + CS/4] * polar(1, left * pi * 2 / CS);
+  c1 = output[right + CS/4] * polar(1, right * pi * 2 / CS);
+  output[left + CS/4] = complex(-c0.real, c1.imag);
+  output[right + CS/4] = complex(-c1.real, c0.imag);
+  output[i] = complex(-c1.imag, c0.real);
+  output[CS/2 - i - 1] = complex(-c1.real, c0.imag);
+}</pre>
+
+<p>Now the output buffer can be interpreted as real numbers again.</p>
+
+<h3>Windowing</h3>
+<p>The last step in decoding is to apply a windowing function to the results to smooth out any artifacts at the block boundaries. Like MP3, WMA uses a Modulated Lapped Transform, which uses a sine-based window function. Note that each block will modify some of the samples from the previous block.</p>
+
+<p>This step writes to the sample output stream. Before performing this step, ensure that enough samples are allocated in the stream to hold the current block. The starting position of the current block in the sample output stream will be called <strong>OUT</strong> below.</p>
+
+<pre>NS = BS * 2;
+LBS = MBS &gt;&gt; PSI;
+NBS = MBS &gt;&gt; NSI;
+fadeIn = min(LBS, BS) / 2;
+offset = (BS &gt; LBS) ? (BS + LBS) / 2 : 0;
+for (i = 0; i &lt; fadeIn; i++) {
+  output[i + offset] *= sin((i + 1) * pi / fadeIn / 2);
+}
+fadeOut = min(NBS, BS) / 2;
+outOffset += (MBS - BS) / 2;
+for (i = NS - fadeOut; i &lt; NS; i++) {
+  output[i + offset] *= sin((NS - i - 1) * pi / fadeOut / 2);
+}
+for (i = 0; i &lt; NS; i++) {
+  OUT[i] += output[i];
+}
+
+OUT += BS;
+PSI = SI;
+SI = NSI;</pre>
+
+<p>Once the windowing is applied, the block is finished. As noted in the pseudocode, increase <strong>OUT</strong> by (<strong>BS</strong> - <strong>fadeOut</strong>), move <strong>SI</strong> to <strong>PSI</strong> and <strong>NSI</strong> to <strong>SI</strong>, and proceed to the next block.</p>
+
+<h2>Variable Length Coding (VLC)</h2>
+<p>There are a number of variable-length coding tables, but aside from the exponent scale factor table, the only ones that come up for files that have a reasonable bitrate are tables 4 and 5. See FFmpeg's <a href="https://github.com/FFmpeg/FFmpeg/blob/master/libavcodec/wmadata.h">wmadata.h</a> for the coefficient tables (<code>coef4_huffcodes</code>, <code>coef4_huffbits</code>, <code>coef5_huffcodes</code>, and <code>coef5_huffbits</code>) and <a href="https://github.com/FFmpeg/FFmpeg/blob/master/libavcodec/aactab.c">aactab.c</a> for the exponent scale factor table (<code>ff_aac_scalefactor_code</code> and <code>ff_aac_scalefactor_bits</code>).</p>
+
+<p>VLC is a prefix code. FFmpeg generates large lookup tables to optimize the process, but the following works:</p>
+<pre>prefix = 0;
+for (k = 1; k <= bits; k++) { // bits=8 for exponents, 9 for coefficients
+  prefix = (prefix << 1) | readBits(1);
+  for (int i = 0; i < sizeof(huffbits); i++) {
+    if (huffbits[i] == k && huffcodes[i] == prefix) {
+      return i;
+    }
+  }
+}
+return failure;
+</pre>
+<p>A hashtable or key/value map could provide a simple optimization.</p>
+
+<h2>Run-Level Encoding (RLE)</h2>
+<p>An RLE block contains a maximum of (<strong>NC</strong> &gt;&gt; <strong>SI</strong>) - 3 spectral coefficients.</p>
+
+<p>Each audio block has a vector of <strong>MLS</strong> spectral coefficients, all initialized to 0. Start with a pointer at the beginning of this vector.</p>
+
+<p>For each coefficient, read a VLC field. If the field is 1, then the block is terminated early and the rest of the coefficients are 0.</p>
+
+<p>If the field is greater than 1, look it up in the <code>levels</code> table (see wmadata.h) to determine the coefficient value. Additionally, look the field up in the run offset table (see below) to determine <strong>offset</strong>.</p>
+
+<p>Otherwise, the coefficient value is stored immediately afterward; look up the channel gain in the following table to determine how many more bits to read. (When the channel gain is low, more bits are used to allow for larger coefficients.) Then read another <strong>MLS</strong> bits to determine <strong>offset</strong>.</p>
+
+<table>
+<thead>
+  <tr> <th>Channel gain</th> <th>Number of bits</th> </tr>
+</thead>
+<tbody>
+  <tr> <td>&lt; 15</td> <td>13</td> </tr>
+  <tr> <td>&lt; 32</td> <td>12</td> </tr>
+  <tr> <td>&lt; 40</td> <td>11</td> </tr>
+  <tr> <td>&lt; 45</td> <td>10</td> </tr>
+  <tr> <td>&gt;= 45</td> <td>9</td> </tr>
+</tbody>
+</table>
+
+<p>Read one more bit. If the bit is 0, then flip the sign of the coefficient.</p>
+
+<p>Move the pointer to the right <strong>offset</strong> positions, wrapping around to the beginning of the vector if you go past the end. Write the coefficient to this position, then move the pointer one more position to the right.</p>
+
+<h3>Level and run offset tables</h3>
+<p>FFmpeg doesn't hard-code the level or run offset tables, but instead stores it in a compressed form in the <code>levels</code> table in <a href="https://github.com/FFmpeg/FFmpeg/blob/master/libavcodec/wmadata.h">wmadata.h</a>. This compressed table can be unpacked using the following algorithm:</p>
+<pre>uint16_t run_table[sizeof(coefX_huffbits)] = { 0, 0 };
+float level_table[sizeof(coefX_huffbits)] = { 0.0, 0.0 };
+for (i = 2, k = 0; k &lt; sizeof(levelsX); k++) {
+  for (j = 0; j &lt; levelsX[k]; i++, j++) {
+    run_table[i] = j;
+    level_table[i] = k + 1;
+  }
+}</pre>
+
+<p>FFmpeg implements this algorithm in <code>init_coef_vlc</code> in <a href="https://github.com/FFmpeg/FFmpeg/blob/master/libavcodec/wma.c">wma.c</a>. FFmpeg also initializes an integer table in this function, but this is only needed by the encoder.</p>
+
+</body>
+</html>
