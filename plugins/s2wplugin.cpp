@@ -32,15 +32,16 @@ struct S2WPluginInfo : public TagsM3UMixin {
   std::unique_ptr<IIDXSequence> seq;
 };
 
-const std::string S2WPluginInfo::version = "0.1.0";
+const std::string S2WPluginInfo::version = "0.2.1";
 const std::string S2WPluginInfo::pluginName = "bemani2wav Plugin";
 const std::string S2WPluginInfo::pluginShortName = "bemani2wav";
 ConstPairList S2WPluginInfo::extensions = {
   { "1", "Konami .1 sequences (*.1)" },
   { "2dx", "Konami .2dx sample banks (*.2dx)" },
+  { "s3p", "Konami .s3p sample banks (*.s3p)" },
 };
 const std::string S2WPluginInfo::about =
-  "bemani2wav copyright (C) 2020 Adam Higerd\n"
-  "Distributed under the MIT license.";
+  "bemani2wav copyright (C) 2020-2022 Adam Higerd\n"
+  "Distributed under the LGPLv2 license.";
 
 SEQ2WAV_PLUGIN(S2WPluginInfo);

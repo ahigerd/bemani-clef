@@ -150,10 +150,11 @@ void WmaCodec::parseSuperframe(BitStream& bitstream)
   bitstream.resetBitsConsumed();
   int sfID = bitstream.read(4);
   int numFrames = bitReservoir ? bitstream.read(4) : 1;
-  if (numFrames <= 0) {
-    throw WmaException("bad frame count in superframe");
-  } else if (bitReservoir && !bitstream.bitsReserved()) {
+  if (bitReservoir && bitstream.bitsReserved() <= (!numFrames ? 8 : 0)) {
     numFrames--;
+  }
+  if (numFrames < 0) {
+    throw WmaException("bad frame count in superframe");
   }
 
   for (int i = 0; i < fmt.channels; i++) {

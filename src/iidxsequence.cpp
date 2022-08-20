@@ -78,6 +78,11 @@ bool IIDXSequence::loadS3P()
         wmaCodec.decode(wmaData, samplesRead + 1);
       } catch (WmaException& w) {
         std::cerr << "Ignoring error in sample #" << samplesRead << ": " << w.what() << std::endl;
+#ifndef NDEBUG
+        std::ofstream f("sample" + std::to_string(samplesRead) + ".wma", std::ios::binary | std::ios::out | std::ios::trunc);
+        f.write(reinterpret_cast<const char*>(wmaData.data()), wmaData.size());
+        f.close();
+#endif
       }
       samplesRead++;
     }

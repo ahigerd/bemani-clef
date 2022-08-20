@@ -8,6 +8,10 @@
 *.wav
 *.ifs
 *.m3u
+*.wma
+*.1
+*.s3p
+*.2dx
 
 # build temporaries
 *.o

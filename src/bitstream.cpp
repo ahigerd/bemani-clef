@@ -92,32 +92,6 @@ uint64_t BitStream::read(int count)
     result = (result << 1) | read();
   }
   return result;
-#if 0
-  if (count > remaining() || count < 0) {
-    throw std::runtime_error("BitStream::read overflow");
-  }
-  int firstByte = 8 - bitOffset;
-  if (firstByte > count) {
-    firstByte = count;
-  }
-  uint64_t result = 0;
-  while (firstByte > 0) {
-    result = (result << 1) | read();
-    --firstByte;
-    --count;
-  }
-  count -= firstByte;
-  bitOffset = (bitOffset + firstByte) % 8;
-  while (count >= 8) {
-    result = (result << 8) | *++ptr;
-    count -= 8;
-  }
-  if (count > 0) {
-    result = (result << count) | (*ptr & ((1 << count) - 1));
-  }
-  bitOffset = count;
-  return result;
-#endif
 }
 
 uint32_t BitStream::remaining() const {

@@ -1,3 +1,4 @@
+#define _USE_MATH_DEFINES
 #include "sintable.h"
 #include <cmath>
 #include <unordered_map>
