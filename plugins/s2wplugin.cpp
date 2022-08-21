@@ -32,7 +32,7 @@ struct S2WPluginInfo : public TagsM3UMixin {
   std::unique_ptr<IIDXSequence> seq;
 };
 
-const std::string S2WPluginInfo::version = "0.2.1";
+const std::string S2WPluginInfo::version = "0.2.2";
 const std::string S2WPluginInfo::pluginName = "bemani2wav Plugin";
 const std::string S2WPluginInfo::pluginShortName = "bemani2wav";
 ConstPairList S2WPluginInfo::extensions = {
