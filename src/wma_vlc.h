@@ -84,7 +84,7 @@ struct VLC {
     uint32_t prefix = 0;
     uint32_t padding = 0x0002;
     for (int k = 0; k < 31; k++) {
-      prefix = (prefix << 1) | bitstream.read();
+      prefix = (prefix << 1) | uint32_t(bitstream.read());
       auto iter = lookup.find(prefix | padding);
       if (iter != lookup.end()) {
         return iter->second;

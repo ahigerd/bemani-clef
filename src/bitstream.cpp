@@ -89,7 +89,7 @@ uint64_t BitStream::read(int count)
   int oc = count;
   uint64_t result = 0;
   while (count-- > 0) {
-    result = (result << 1) | read();
+    result = (result << 1) | uint64_t(read());
   }
   return result;
 }
