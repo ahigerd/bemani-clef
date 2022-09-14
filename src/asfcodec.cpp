@@ -35,6 +35,11 @@ std::pair<Iter8, Iter8> findWma(Iter8 start, Iter8 end) {
   return std::make_pair(start, wmaEnd);
 }
 
+AsfCodec::AsfCodec(S2WContext* ctx) : ICodec(ctx)
+{
+  // initializers only
+}
+
 SampleData* AsfCodec::decodeRange(std::vector<uint8_t>::const_iterator start, std::vector<uint8_t>::const_iterator end, uint64_t sampleID)
 {
   Iter8 propStart = findGuid(streamProps, start, end);
@@ -62,7 +67,7 @@ SampleData* AsfCodec::decodeRange(std::vector<uint8_t>::const_iterator start, st
 
   std::unique_ptr<WmaCodec> wmaCodec;
   try {
-    wmaCodec.reset(new WmaCodec(fmt, maxPacketSize));
+    wmaCodec.reset(new WmaCodec(context(), fmt, maxPacketSize));
   } catch (std::exception& e) {
     std::cerr << e.what() << std::endl;
     return nullptr;

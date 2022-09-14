@@ -1,5 +1,6 @@
 #include "iidxsequence.h"
 #include "riffwriter.h"
+#include "s2wcontext.h"
 #include "synth/synthcontext.h"
 #include "synth/channel.h"
 #include "commandargs.h"
@@ -9,8 +10,8 @@
 #include <iostream>
 #include <iomanip>
 
-int decodeWma(const std::string& infile, const std::string& filename) {
-  AsfCodec wma;
+int decodeWma(S2WContext* ctx, const std::string& infile, const std::string& filename) {
+  AsfCodec wma(ctx);
   auto sample = wma.decodeFile(infile);
   RiffWriter riff(sample->sampleRate, sample->channels.size() > 1);
   std::cerr << "writing to " << filename << std::endl;
@@ -52,11 +53,12 @@ int main(int argc, char** argv)
   }
 
   try {
+    S2WContext s2w;
     if (args.hasKey("wma")) {
-      return decodeWma(args.getString("wma"), args.getString("output", args.getString("wma") + ".wav"));
+      return decodeWma(&s2w, args.getString("wma"), args.getString("output", args.getString("wma") + ".wav"));
     }
     std::string infile = args.positional().at(0);
-    IIDXSequence seq(infile);
+    IIDXSequence seq(&s2w, infile);
 
     if (args.hasKey("verbose")) {
       // TODO: native tag format

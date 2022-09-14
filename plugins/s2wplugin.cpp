@@ -10,18 +10,18 @@ struct S2WPluginInfo : public TagsM3UMixin {
     return true;
   }
 
-  static double length(const OpenFn& openFile, const std::string& filename, std::istream& file) {
-    IIDXSequence seq(filename, openFile);
+  static double length(S2WContext* s2w, const std::string& filename, std::istream& file) {
+    IIDXSequence seq(s2w, filename);
     return seq.duration();
   }
 
-  static int sampleRate(const OpenFn& openFile, const std::string& filename, std::istream& file) {
+  static int sampleRate(S2WContext* s2w, const std::string& filename, std::istream& file) {
     // TODO: any known 48kHz tracks?
     return 44100;
   }
 
-  SynthContext* prepare(const OpenFn& openFile, const std::string& filename, std::istream& file) {
-    seq.reset(new IIDXSequence(filename, openFile));
+  SynthContext* prepare(S2WContext* s2w, const std::string& filename, std::istream& file) {
+    seq.reset(new IIDXSequence(s2w, filename ));
     return seq->initContext();
   }
 
@@ -32,7 +32,7 @@ struct S2WPluginInfo : public TagsM3UMixin {
   std::unique_ptr<IIDXSequence> seq;
 };
 
-const std::string S2WPluginInfo::version = "0.2.2";
+const std::string S2WPluginInfo::version = "0.2.3";
 const std::string S2WPluginInfo::pluginName = "bemani2wav Plugin";
 const std::string S2WPluginInfo::pluginShortName = "bemani2wav";
 ConstPairList S2WPluginInfo::extensions = {

@@ -39,7 +39,7 @@ public:
 
 class WmaCodec : public ICodec {
 public:
-  WmaCodec(const WaveFormatEx& fmt, uint32_t maxPacketSize);
+  WmaCodec(S2WContext* ctx, const WaveFormatEx& fmt, uint32_t maxPacketSize);
 
   virtual SampleData* decodeRange(std::vector<uint8_t>::const_iterator start, std::vector<uint8_t>::const_iterator end, uint64_t sampleID = 0);
 

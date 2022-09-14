@@ -1,6 +1,7 @@
 #include "iidxsequence.h"
 #include "asfcodec.h"
 #include "wmacodec.h"
+#include "s2wcontext.h"
 #include "codec/sampledata.h"
 #include "codec/riffcodec.h"
 #include "riffwriter.h"
@@ -10,7 +11,8 @@
 #include <fstream>
 #include <iostream>
 
-IIDXSequence::IIDXSequence(const std::string& path, const OpenFn& openFile) : openFile(openFile)
+IIDXSequence::IIDXSequence(S2WContext* ctx, const std::string& path)
+: BaseSequence(ctx)
 {
   int dotPos = path.rfind('.');
   if (dotPos == std::string::npos) {
@@ -18,7 +20,7 @@ IIDXSequence::IIDXSequence(const std::string& path, const OpenFn& openFile) : op
   }
   basePath = path.substr(0, dotPos + 1);
 
-  auto seqFile = openFile(basePath + "1");
+  auto seqFile = ctx->openFile(basePath + "1");
   addTrack(new OneTrack(*seqFile.get()));
 }
 
@@ -29,22 +31,27 @@ double IIDXSequence::duration() const
 
 SynthContext* IIDXSequence::initContext()
 {
-  bool hasSamples = loadS3P() || load2DX();
-  if (!hasSamples) {
-    throw std::runtime_error("No sample data found");
-  }
   int sampleRate = 44100;
-  ctx.reset(new SynthContext(sampleRate));
-  ctx->addChannel(getTrack(0));
-  return ctx.get();
+  try {
+    synth.reset(new SynthContext(context(), sampleRate));
+    bool hasSamples = loadS3P() || load2DX();
+    if (!hasSamples) {
+      throw std::runtime_error("No sample data found");
+    }
+    synth->addChannel(getTrack(0));
+    return synth.get();
+  } catch (...) {
+    synth.reset(nullptr);
+    throw;
+  }
 }
 
 bool IIDXSequence::loadS3P()
 {
-  SampleData::purge();
-  AsfCodec wmaCodec;
+  context()->purgeSamples();
+  AsfCodec wmaCodec(context());
   try {
-    auto file = openFile(basePath + "s3p");
+    auto file = context()->openFile(basePath + "s3p");
     std::vector<char> buffer(12);
     if (!file->read(buffer.data(), 8)) {
       return false;
@@ -78,11 +85,6 @@ bool IIDXSequence::loadS3P()
         wmaCodec.decode(wmaData, samplesRead + 1);
       } catch (WmaException& w) {
         std::cerr << "Ignoring error in sample #" << samplesRead << ": " << w.what() << std::endl;
-#ifndef NDEBUG
-        std::ofstream f("sample" + std::to_string(samplesRead) + ".wma", std::ios::binary | std::ios::out | std::ios::trunc);
-        f.write(reinterpret_cast<const char*>(wmaData.data()), wmaData.size());
-        f.close();
-#endif
       }
       samplesRead++;
     }
@@ -96,11 +98,11 @@ bool IIDXSequence::loadS3P()
 
 bool IIDXSequence::load2DX()
 {
-  SampleData::purge();
-  RiffCodec riffCodec;
+  context()->purgeSamples();
+  RiffCodec riffCodec(context());
   try {
     std::cerr << "Reading " << basePath << "2dx..." << std::endl;
-    auto file = openFile(basePath + "2dx");
+    auto file = context()->openFile(basePath + "2dx");
     file->ignore(20);
     std::vector<char> buffer(12);
     if (!file->read(buffer.data(), 4)) {

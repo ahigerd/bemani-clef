@@ -59,8 +59,8 @@ static inline int ff_wma_total_gain_to_bits(int total_gain)
         return  9;
 }
 
-WmaCodec::WmaCodec(const WaveFormatEx& fmt, uint32_t maxPacketSize)
-: fmt(fmt), maxPacketSize(maxPacketSize)
+WmaCodec::WmaCodec(S2WContext* ctx, const WaveFormatEx& fmt, uint32_t maxPacketSize)
+: ICodec(ctx), fmt(fmt), maxPacketSize(maxPacketSize)
 {
   std::memset(exponents, 0, sizeof(exponents));
   std::memset(coefs1, 0, sizeof(coefs1));
@@ -100,7 +100,7 @@ WmaCodec::WmaCodec(const WaveFormatEx& fmt, uint32_t maxPacketSize)
 
 SampleData* WmaCodec::decodeRange(std::vector<uint8_t>::const_iterator start, std::vector<uint8_t>::const_iterator end, uint64_t sampleID)
 {
-  sampleData = sampleID ? new SampleData(sampleID) : new SampleData();
+  sampleData = sampleID ? new SampleData(context(), sampleID) : new SampleData(context());
   sampleData->sampleRate = fmt.sampleRate;
   for (int i = 0; i < fmt.channels; i++) {
     sampleData->channels.emplace_back(0);

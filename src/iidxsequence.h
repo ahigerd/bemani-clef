@@ -5,10 +5,11 @@
 #include "synth/synthcontext.h"
 #include "plugin/baseplugin.h"
 #include "onetrack.h"
+class S2WContext;
 
 class IIDXSequence : public BaseSequence<OneTrack> {
 public:
-  IIDXSequence(const std::string& path, const OpenFn& openFile = openFstream);
+  IIDXSequence(S2WContext* ctx, const std::string& path);
 
   std::string basePath;
 
@@ -20,8 +21,7 @@ private:
   bool loadS3P();
   bool load2DX();
 
-  OpenFn openFile;
-  std::unique_ptr<SynthContext> ctx;
+  std::unique_ptr<SynthContext> synth;
 };
 
 #endif
