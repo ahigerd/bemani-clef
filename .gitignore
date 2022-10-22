@@ -30,8 +30,14 @@ bemani2wav_d
 *.a
 *.so
 *.exe
+*_gui
+*_gui_d
+gui/Makefile*
 
 # external dependencies
 plugins/foobar2000
 plugins/pfc
 plugins/libPPUI
+
+# de-ignore submodule
+!/seq2wav
