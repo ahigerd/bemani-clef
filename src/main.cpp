@@ -1,3 +1,5 @@
+#include "ifs/ifs.h"
+#include "ifs/ifssequence.h"
 #include "iidxsequence.h"
 #include "riffwriter.h"
 #include "s2wcontext.h"
@@ -30,6 +32,72 @@ int decodeWma(S2WContext* ctx, const std::string& infile, const std::string& fil
   return 0;
 }
 
+void saveOutput(SynthContext* ctx, std::string filename)
+{
+#ifndef _WIN32
+  if (filename == "-") {
+    filename = "/dev/stdout";
+  }
+#endif
+  std::cerr << "Writing " << (int(ctx->maximumTime() * 10) * .1) << " seconds to \"" << filename << "\"..." << std::endl;
+  RiffWriter riff(ctx->sampleRate, true);
+  riff.open(filename);
+  ctx->save(&riff);
+  riff.close();
+}
+
+int processIFS(CommandArgs& args, S2WContext& s2w, const char* programName)
+{
+  IFSSequence seq(&s2w);
+  if (args.hasKey("mute")) {
+    seq.setMutes(args.getString("mute"));
+  }
+  if (args.hasKey("solo")) {
+    seq.setSolo(args.getString("solo"));
+  }
+  std::vector<std::string> positional = args.positional();
+  for (const std::string& fn : args.positional()) {
+    std::string paired = IFS::pairedFile(fn);
+    if (std::find(positional.begin(), positional.end(), paired) == positional.end()) {
+      positional.push_back(paired);
+    }
+  }
+  for (const std::string& fn : positional) {
+    std::ifstream file(fn, std::ios::in | std::ios::binary);
+    IFS* ifs = new IFS(file);
+    if (args.hasKey("verbose")) {
+      ifs->manifest.dump();
+    }
+    seq.addIFS(ifs);
+  }
+  seq.load();
+  if (!seq.numTracks()) {
+    std::cerr << programName << ": no playable tracks found, or all tracks muted" << std::endl;
+  }
+
+  for (const std::string& fn : positional) {
+    std::string m3uPath = TagsM3U::relativeTo(fn);
+    std::ifstream tags(m3uPath);
+    if (!tags) {
+      continue;
+    }
+    TagsM3U m3u(tags);
+    int trackIndex = m3u.findTrack(fn);
+    if (trackIndex >= 0) {
+      std::cerr << "Tags found in " << m3uPath << ":" << std::endl;
+      for (const auto& iter : m3u.allTags(trackIndex)) {
+        std::cerr << iter.first << " = " << iter.second << std::endl;
+      }
+      break;
+    }
+  }
+
+  SynthContext* ctx(seq.initContext());
+  std::string filename = args.getString("output", args.positional()[0] + ".wav");
+  saveOutput(ctx, filename);
+  return 0;
+}
+
 int main(int argc, char** argv)
 {
   CommandArgs args({
@@ -37,8 +105,10 @@ int main(int argc, char** argv)
     { "verbose", "v", "", "Output additional information about input files" },
     { "output", "o", "filename", "Set the output filename (default: input filename with .wav extension)" },
     { "wma", "", "filename", "Decode a WMA file instead of playing a sequence" },
+    { "mute", "m", "parts", "Silence the selected channels (gitadora only)" },
+    { "solo", "s", "parts", "Only play the selected channels (gitadora only)" },
     // TODO: save-tags
-    { "", "", "input", "Path to a .1 sequence, .s3p bank, or .2dx bank" },
+    { "", "", "input", "Path to one or more .1 sequences, .s3p banks, .2dx banks, or .ifs files" },
   });
   std::string argError = args.parse(argc, argv);
   if (!argError.empty()) {
@@ -46,18 +116,40 @@ int main(int argc, char** argv)
     return 1;
   } else if (args.hasKey("help") || argc < 2) {
     std::cout << args.usageText(argv[0]) << std::endl;
+    std::cout << std::endl;
+    std::cout << "For gitadora mute or solo, specify one or more channels (e.g. \"dgbk\"):" << std::endl;
+    std::cout << "\td  Drums" << std::endl;
+    std::cout << "\tg  Guitar" << std::endl;
+    std::cout << "\tb  Bass" << std::endl;
+    std::cout << "\tk  Keyboard" << std::endl;
+    std::cout << "\ts  Streamed backing track" << std::endl;
     return 0;
-  } else if (args.positional().size() != 1 && !args.hasKey("wma")) {
-    std::cerr << argv[0] << ": exactly one input filename required" << std::endl;
+  } else if (!args.positional().size() && !args.hasKey("wma")) {
+    std::cerr << argv[0] << ": at least one input filename required" << std::endl;
     return 1;
   }
 
+  S2WContext s2w;
+
+  if (args.hasKey("wma")) {
+    return decodeWma(&s2w, args.getString("wma"), args.getString("output", args.getString("wma") + ".wav"));
+  }
+
+  std::string infile = args.positional().at(0);
+  bool isIFS = false;
   try {
-    S2WContext s2w;
-    if (args.hasKey("wma")) {
-      return decodeWma(&s2w, args.getString("wma"), args.getString("output", args.getString("wma") + ".wav"));
+    std::ifstream file(infile, std::ios::in | std::ios::binary);
+    IFS ifs(file);
+    isIFS = true;
+  } catch (...) {
+    // Parsing as IFS failed
+  }
+
+
+  try {
+    if (isIFS) {
+      return processIFS(args, s2w, argv[0]);
     }
-    std::string infile = args.positional().at(0);
     IIDXSequence seq(&s2w, infile);
 
     if (args.hasKey("verbose")) {
@@ -78,16 +170,7 @@ int main(int argc, char** argv)
 
     SynthContext* ctx = seq.initContext();
     std::string filename = args.getString("output", seq.basePath + "wav");
-#ifndef _WIN32
-    if (filename == "-") {
-      filename = "/dev/stdout";
-    }
-#endif
-    std::cerr << "Writing " << (int(ctx->maximumTime() * 10) * .1) << " seconds to \"" << filename << "\"..." << std::endl;
-    RiffWriter riff(ctx->sampleRate, true);
-    riff.open(filename);
-    ctx->save(&riff);
-    riff.close();
+    saveOutput(ctx, filename);
     return 0;
   } catch (std::exception& e) {
     std::cerr << argv[0] << ": " << e.what() << std::endl;
