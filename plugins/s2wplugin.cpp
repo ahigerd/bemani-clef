@@ -1,26 +1,20 @@
 #include "plugin/baseplugin.h"
 #include "codec/sampledata.h"
 #include "iidxsequence.h"
+#include "identify.h"
 #include "ifs/ifssequence.h"
 #include "ifs/ifs.h"
 
 struct S2WPluginInfo {
   S2WPLUGIN_STATIC_FIELDS
 
-  static bool isPlayable(std::istream& file) {
-    if (filename.find(".ifs") != std::string::npos) {
-      // Will throw if invalid
-      IFS ifs(file);
-      return true;
-    } else {
-      // Only rely on file extensions for now
-      return true;
-    }
+  static bool isPlayable(S2WContext* s2w, const std::string& filename, std::istream& file) {
+    return identifyFileType(s2w, filename, file) != FT_invalid;
   }
 
   static double length(S2WContext* s2w, const std::string& filename, std::istream& file) {
-    if (filename.find(".ifs") != std::string::npos) {
-      IFSSequence seq(ctx);
+    if (isIfsFile(file)) {
+      IFSSequence seq(s2w);
       seq.addIFS(new IFS(file));
       return seq.duration();
     }
@@ -36,8 +30,8 @@ struct S2WPluginInfo {
     return tagMap;
   }
 
-  static int sampleRate(S2WContext* s2w, const std::string& filename, std::istream& file) {
-    if (filename.find(".ifs") != std::string::npos) {
+  static int sampleRate(S2WContext*, const std::string&, std::istream& file) {
+    if (isIfsFile(file)) {
       return 48000;
     } else {
       // TODO: any known 48kHz IIDX tracks?
@@ -46,19 +40,19 @@ struct S2WPluginInfo {
   }
 
   SynthContext* prepare(S2WContext* s2w, const std::string& filename, std::istream& file) {
-    if (filename.find(".ifs") != std::string::npos) {
+    if (isIfsFile(file)) {
       iidx.reset();
-      ifs.reset(new IFSSequence(ctx));
+      ifs.reset(new IFSSequence(s2w));
       ifs->addIFS(new IFS(file));
       try {
-        auto paired(ctx->openFile(IFS::pairedFile(filename)));
+        auto paired(s2w->openFile(IFS::pairedFile(filename)));
         if (paired) {
           ifs->addIFS(new IFS(*paired));
         }
       } catch (...) {
         // no paired file, ignore
       }
-      ctx->purgeSamples();
+      s2w->purgeSamples();
       ifs->load();
       return ifs->initContext();
     }

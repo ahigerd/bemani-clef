@@ -58,7 +58,7 @@ int processIFS(CommandArgs& args, S2WContext& s2w, const char* programName)
   std::vector<std::string> positional = args.positional();
   for (const std::string& fn : args.positional()) {
     std::string paired = IFS::pairedFile(fn);
-    if (std::find(positional.begin(), positional.end(), paired) == positional.end()) {
+    if (!paired.empty() && std::find(positional.begin(), positional.end(), paired) == positional.end()) {
       positional.push_back(paired);
     }
   }
@@ -73,6 +73,7 @@ int processIFS(CommandArgs& args, S2WContext& s2w, const char* programName)
   seq.load();
   if (!seq.numTracks()) {
     std::cerr << programName << ": no playable tracks found, or all tracks muted" << std::endl;
+    return 1;
   }
 
   for (const std::string& fn : positional) {
