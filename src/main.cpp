@@ -5,7 +5,7 @@
 #include "synth/channel.h"
 #include "commandargs.h"
 #include "tagmap.h"
-#include "asfcodec.h"
+#include "wma/asfcodec.h"
 #include <fstream>
 #include <iostream>
 #include <iomanip>

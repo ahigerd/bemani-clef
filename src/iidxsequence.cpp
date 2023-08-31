@@ -1,6 +1,6 @@
 #include "iidxsequence.h"
-#include "asfcodec.h"
-#include "wmacodec.h"
+#include "wma/asfcodec.h"
+#include "wma/wmacodec.h"
 #include "s2wcontext.h"
 #include "codec/sampledata.h"
 #include "codec/riffcodec.h"
