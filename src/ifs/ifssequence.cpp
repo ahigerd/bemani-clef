@@ -4,14 +4,17 @@
 #include "sq3track.h"
 #include "sq2track.h"
 #include "phasetrack.h"
+#include "../onetrack.h"
 #include "codec/adpcmcodec.h"
 #include "codec/sampledata.h"
 #include "../bmpcodec.h"
+#include "../bankloaders.h"
 #include "utility.h"
 #include "synth/synthcontext.h"
 #include <numeric>
 #include <iostream>
 #include <sstream>
+#include <fstream>
 
 uint64_t IFSSequence::stringToSpaces(const std::string& channels)
 {
@@ -94,10 +97,19 @@ void IFSSequence::load()
         for (auto iter2 : va3.defaultDrums) {
           sampleData[SampleSpaces::ByNote | sampleSpace | iter2.first] = sampleData[sampleSpace | iter2.second];
         }
+      } else if (extension == "2dx") {
+        std::ofstream f(filename);
+        f.write(reinterpret_cast<const char*>(iter.second.data()), iter.second.size());
+        std::string str(reinterpret_cast<const char*>(iter.second.data()), iter.second.size());
+        std::istringstream ss(str);
+        uint64_t space = (filename.find("_pre") == std::string::npos) ? 0 : 0x100000000ULL;
+        ::load2DX(context(), &ss, space);
       } else if (extension == "bin" && filename.substr(0, 3) == "bgm") {
         size_t pos = filename.rfind('.');
         int streamType = stringToSpaces(filename.substr(pos - 4, 4)) | SampleSpaces::Backing;
         streams[streamType] = filename;
+      } else if (extension == "bin") {
+        seqFiles.push_back(filename);
       } else if (extension.find("sq") == 0) {
         useSQ3 = useSQ3 || filename.back() == '3';
         seqFiles.push_back(filename);
@@ -129,6 +141,12 @@ void IFSSequence::load()
           }
           sequences |= sampleSpace;
         }
+      } else if (filename.substr(filename.size() - 4) == ".bin") {
+        // pop'n
+        std::string str(reinterpret_cast<const char*>(data.data()), data.size());
+        std::istringstream ss(str);
+        addTrack(new OneTrack(ss, true));
+        return;
       } else {
         std::cerr << "Warning: unknown sequence type: " << filename << std::endl;
       }

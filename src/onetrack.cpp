@@ -20,27 +20,57 @@
 //
 // offset = 0x7fffffff means EOF
 
-OneTrack::OneTrack(std::istream& file)
+OneTrack::OneTrack(std::istream& file, bool popn)
+: BasicTrack()
 {
   std::vector<uint64_t> keySamples[2] = {
-    std::vector<uint64_t>(8),
-    std::vector<uint64_t>(8),
+    { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+    { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
   };
-  std::vector<char> buffer(8);
-  file.read(buffer.data(), 8);
-  uint32_t chartLen = parseInt<uint32_t>(buffer, 4) / 8;
+  std::vector<char> buffer(17);
+  file.read(buffer.data(), 17);
+  int eventSize = 8;
+  if (popn && buffer[17] == 0x45) {
+    // extended record format
+    eventSize = 12;
+  }
+  uint32_t chartLen = popn ? 0x7FFFFFFF : parseInt<uint32_t>(buffer, 4) / eventSize;
   file.seekg(parseInt<uint32_t>(buffer, 0));
+  uint32_t offset;
+  uint8_t command, param;
+  uint16_t value;
+  int32_t filepos = -8;
   for (int i = 0; i < chartLen; i++) {
-    if (!file.read(buffer.data(), 8)) {
-      throw std::runtime_error("Unexpected EOF parsing chart");
+    filepos += eventSize;
+    if (!file.read(buffer.data(), eventSize)) {
+      if (popn) {
+        return;
+      } else {
+        throw std::runtime_error("Unexpected EOF parsing chart");
+      }
     }
-    uint32_t offset = parseInt<uint32_t>(buffer, 0);
+    offset = parseInt<uint32_t>(buffer, 0);
     if (offset == 0x7FFFFFFF) {
       break;
     }
-    uint8_t command = buffer[4];
-    uint8_t param = buffer[5];
-    uint16_t value = parseInt<uint16_t>(buffer, 6);
+    if (popn) {
+      command = buffer[5];
+      if (command == 1) {
+        command = 0;
+      }
+      if (command == 2 || command == 7) {
+        value = parseInt<uint16_t>(buffer, 6);
+        param = value >> 12;
+        value &= 0x0FFF;
+      } else {
+        param = buffer[6];
+        value = uint8_t(buffer[7]);
+      }
+    } else {
+      command = buffer[4];
+      param = buffer[5];
+      value = parseInt<uint16_t>(buffer, 6);
+    }
     switch (command) {
     case 0:
     case 1:
@@ -59,8 +89,15 @@ OneTrack::OneTrack(std::istream& file)
       break;
     case 16:
       command -= 14;
-    case 2:
     case 3:
+      if (popn) {
+        SampleEvent* event = new SampleEvent;
+        event->timestamp = offset / 1000.0;
+        event->sampleID = 0x10001;
+        addEvent(event);
+        break;
+      }
+    case 2:
       keySamples[command - 2][param] = value;
       break;
     case 4:

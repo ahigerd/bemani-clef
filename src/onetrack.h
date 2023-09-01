@@ -7,10 +7,7 @@
 
 class OneTrack : public BasicTrack {
 public:
-  OneTrack(std::istream& file);
-
-private:
-  std::vector<uint64_t> keySamples[2];
+  OneTrack(std::istream& file, bool popn = false);
 };
 
 #endif
