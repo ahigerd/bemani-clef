@@ -25,7 +25,7 @@ namespace SampleSpaces {
 class IFSSequence : public BaseSequence<ITrack> {
 public:
   static uint64_t stringToSpaces(const std::string& channels);
-  IFSSequence(S2WContext* ctx);
+  IFSSequence(S2WContext* ctx, bool usePreview = false);
 
   double sampleRate;
   std::unordered_map<uint64_t, VA3::Metadata> sampleData;
@@ -42,6 +42,7 @@ private:
   void usePhasedStreams(const std::unordered_map<uint64_t, std::string>& streams);
 
   uint64_t mute;
+  bool usePreview;
   std::vector<std::unique_ptr<IFS>> files;
   std::unique_ptr<SynthContext> ctx;
 };

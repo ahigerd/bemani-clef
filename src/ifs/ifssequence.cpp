@@ -46,8 +46,8 @@ uint64_t IFSSequence::stringToSpaces(const std::string& channels)
   return spaces;
 }
 
-IFSSequence::IFSSequence(S2WContext* ctx)
-: BaseSequence<ITrack>(ctx), sampleRate(48000), mute(0)
+IFSSequence::IFSSequence(S2WContext* ctx, bool usePreview)
+: BaseSequence<ITrack>(ctx), sampleRate(48000), mute(0), usePreview(usePreview)
 {
   // initializers only
 }
@@ -102,8 +102,21 @@ void IFSSequence::load()
         f.write(reinterpret_cast<const char*>(iter.second.data()), iter.second.size());
         std::string str(reinterpret_cast<const char*>(iter.second.data()), iter.second.size());
         std::istringstream ss(str);
-        uint64_t space = (filename.find("_pre") == std::string::npos) ? 0 : 0x100000000ULL;
-        ::load2DX(context(), &ss, space);
+        if (filename.find("_pre") != std::string::npos) {
+          if (!usePreview) {
+            continue;
+          }
+          ::load2DX(context(), &ss);
+          BasicTrack* track = new BasicTrack;
+          SampleEvent* event = new SampleEvent;
+          event->timestamp = 0;
+          event->sampleID = 0x10001ULL;
+          track->addEvent(event);
+          addTrack(track);
+          return;
+        } else if (!usePreview) {
+          ::load2DX(context(), &ss);
+        }
       } else if (extension == "bin" && filename.substr(0, 3) == "bgm") {
         size_t pos = filename.rfind('.');
         int streamType = stringToSpaces(filename.substr(pos - 4, 4)) | SampleSpaces::Backing;

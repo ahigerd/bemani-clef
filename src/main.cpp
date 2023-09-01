@@ -48,7 +48,7 @@ void saveOutput(SynthContext* ctx, std::string filename)
 
 int processIFS(CommandArgs& args, S2WContext& s2w, const char* programName)
 {
-  IFSSequence seq(&s2w);
+  IFSSequence seq(&s2w, args.hasKey("preview"));
   if (args.hasKey("mute")) {
     seq.setMutes(args.getString("mute"));
   }
@@ -108,6 +108,7 @@ int main(int argc, char** argv)
     { "wma", "", "filename", "Decode a WMA file instead of playing a sequence" },
     { "mute", "m", "parts", "Silence the selected channels (gitadora only)" },
     { "solo", "s", "parts", "Only play the selected channels (gitadora only)" },
+    { "preview", "p", "", "Play the preview clip instead of the sequence (pop'n only)" },
     // TODO: save-tags
     { "", "", "input", "Path to one or more .1 sequences, .s3p banks, .2dx banks, or .ifs files" },
   });
