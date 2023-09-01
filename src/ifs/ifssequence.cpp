@@ -98,8 +98,6 @@ void IFSSequence::load()
           sampleData[SampleSpaces::ByNote | sampleSpace | iter2.first] = sampleData[sampleSpace | iter2.second];
         }
       } else if (extension == "2dx") {
-        std::ofstream f(filename);
-        f.write(reinterpret_cast<const char*>(iter.second.data()), iter.second.size());
         std::string str(reinterpret_cast<const char*>(iter.second.data()), iter.second.size());
         std::istringstream ss(str);
         if (filename.find("_pre") != std::string::npos) {

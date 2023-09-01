@@ -83,11 +83,12 @@ bool load2DX(S2WContext* ctx, std::istream* file, uint64_t space)
     // Supposedly there's a keysound ID in the header somewhere but none of the files I've seen use it
     if (sampleType == 0x3230) {
       uint16_t tracks = parseInt<uint16_t>(buffer, 14);
+      //std::cerr << tracks << "\t";
       if (tracks == 0x0000) {
         sampleID = 0x10000 | space | (bgSamplesRead + 1);
       }
     }
-    std::cerr << sampleID << " @ offset " << offsets[samplesRead] << ": " << std::hex << sampleType << std::dec << std::endl;
+    //std::cerr << sampleID << " @ offset " << offsets[samplesRead] << ": " << std::hex << sampleType << std::dec << std::endl;
     std::vector<uint8_t> riffData(parseInt<uint32_t>(buffer, 8));
     file->ignore(riffOffset - 18);
     if (!file->read(reinterpret_cast<char*>(riffData.data()), riffData.size())) {

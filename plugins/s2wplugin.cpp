@@ -1,9 +1,9 @@
-#include "plugin/baseplugin.h"
 #include "codec/sampledata.h"
 #include "iidxsequence.h"
 #include "identify.h"
 #include "ifs/ifssequence.h"
 #include "ifs/ifs.h"
+#include "plugin/baseplugin.h"
 
 struct S2WPluginInfo {
   S2WPLUGIN_STATIC_FIELDS
@@ -70,7 +70,7 @@ struct S2WPluginInfo {
   std::unique_ptr<IFSSequence> ifs;
 };
 
-const std::string S2WPluginInfo::version = "0.3.0";
+const std::string S2WPluginInfo::version = "0.3.2";
 const std::string S2WPluginInfo::pluginName = "bemani2wav Plugin";
 const std::string S2WPluginInfo::pluginShortName = "bemani2wav";
 ConstPairList S2WPluginInfo::extensions = {

@@ -71,6 +71,7 @@ OneTrack::OneTrack(std::istream& file, bool popn)
       param = buffer[5];
       value = parseInt<uint16_t>(buffer, 6);
     }
+    //std::cerr << std::hex << filepos << ":\t" << std::dec << offset << "\t" << int(command) << "\t" << int(param) << "\t" << value << "\t" << std::hex << value << std::dec << std::endl;
     switch (command) {
     case 0:
     case 1:
@@ -78,6 +79,7 @@ OneTrack::OneTrack(std::istream& file, bool popn)
         SampleEvent* event = new SampleEvent;
         event->timestamp = offset / 1000.0;
         event->sampleID = keySamples[command][param];
+        //std::cerr << "ks " << int(param) << " = " << event->sampleID << std::endl;
         addEvent(event);
         if (param == 7 && value) {
           event = new SampleEvent;
@@ -116,7 +118,7 @@ OneTrack::OneTrack(std::istream& file, bool popn)
       }
       break;
     default:
-      //std::cerr << "unknown command: " << int(command) << std::endl;
+      std::cerr << "unknown command: " << int(command) << std::endl;
       //throw std::runtime_error("Unknown command in chart");
       break;
     }
