@@ -70,7 +70,7 @@ struct S2WPluginInfo {
   std::unique_ptr<IFSSequence> ifs;
 };
 
-const std::string S2WPluginInfo::version = "0.3.2";
+const std::string S2WPluginInfo::version = "0.3.3";
 const std::string S2WPluginInfo::pluginName = "bemani2wav Plugin";
 const std::string S2WPluginInfo::pluginShortName = "bemani2wav";
 ConstPairList S2WPluginInfo::extensions = {

@@ -27,7 +27,7 @@ ifeq ($(CROSS),msvc)
 depends.mak: seq2wav/src $(wildcard src/*.h src/*.cpp src/*/*.h src/*/*.cpp plugins/*.cpp seq2wav/src/*.cpp seq2wav/src/*/*.h seq2wav/src/*/*.cpp seq2wav/src/*/*.h)
 	$(WINE) cmd /c buildvs.cmd depends
 
-foo_input_$(PLUGIN_NAME).$(DLL) in_$(PLUGIN_NAME).$(DLL) aud_$(PLUGIN_NAME).$(DLL) clean: FORCE depends.mak
+$(PLUGIN_NAME)$(EXE) foo_input_$(PLUGIN_NAME).$(DLL) in_$(PLUGIN_NAME).$(DLL) aud_$(PLUGIN_NAME).$(DLL) clean: FORCE depends.mak
 	MAKEFLAGS= $(WINE) nmake /f msvc32.mak $@
 else
 seq2wav/$(BUILDPATH)/libseq2wav.a seq2wav/$(BUILDPATH)/libseq2wav_d.a: seq2wav/src $(wildcard seq2wav/src/*.cpp seq2wav/*/*.h seq2wav/src/*/*.cpp seq2wav/*/*/*.h)

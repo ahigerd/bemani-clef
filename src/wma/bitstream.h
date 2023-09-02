@@ -6,7 +6,12 @@
 
 class BitStream {
 public:
+#ifdef _MSC_VER
+  // XXX: Working around what appears to be a compiler error
+  using Iter8 = const uint8_t*;
+#else
   using Iter8 = std::vector<uint8_t>::const_iterator;
+#endif
   BitStream(const Iter8& begin, const Iter8& end, int maxPacketSize);
 
   struct Pos {

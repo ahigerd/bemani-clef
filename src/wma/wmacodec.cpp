@@ -38,7 +38,6 @@
 #include <memory>
 #include <algorithm>
 #include <cstring>
-#include <iostream>
 #include <iomanip>
 #include <array>
 #include <cmath>
@@ -111,7 +110,12 @@ SampleData* WmaCodec::decodeRange(std::vector<uint8_t>::const_iterator start, st
   expVlc = VLC::get(-1);
   mdct = MDCT::get(frameBits + 1);
 
+#ifdef _MSC_VER
+  // XXX: Working around what appears to be a compiler error
+  BitStream bitstream(&*start, &*end, maxPacketSize);
+#else
   BitStream bitstream(start, end, maxPacketSize);
+#endif
   expBits[0] = expBits[1] = frameBits;
   {
     const auto& rawTables = fmt.sampleRate == 22050 ? exponent_band_22050 :

@@ -25,6 +25,7 @@ bool loadS3P(S2WContext* ctx, std::istream* file, uint64_t space)
   int samplesRead = 0;
   int wmaOffset;
   while (file && samplesRead < numSamples) {
+    //std::cerr << samplesRead << " loading " << offsets[samplesRead] << std::endl;
     if (!file->seekg(offsets[samplesRead])) {
       return false;
     }
@@ -67,7 +68,7 @@ bool load2DX(S2WContext* ctx, std::istream* file, uint64_t space)
   int samplesRead = 0;
   int bgSamplesRead = 0;
   int riffOffset;
-  while (file && (samplesRead + bgSamplesRead) < numSamples) {
+  while (file && samplesRead < numSamples) {
     if (!file->seekg(offsets[samplesRead])) {
       return false;
     }
@@ -77,6 +78,13 @@ bool load2DX(S2WContext* ctx, std::istream* file, uint64_t space)
     uint64_t sampleID = (samplesRead + 1) | space;
     riffOffset = parseInt<uint32_t>(buffer, 4);
     uint16_t sampleType = parseInt<uint16_t>(buffer, 12);
+    //std::cerr << sampleID << " @ offset " << offsets[samplesRead] << ": " << std::hex << sampleType << std::dec << std::endl;
+    std::vector<uint8_t> riffData(parseInt<uint32_t>(buffer, 8));
+    file->ignore(riffOffset - 18);
+    if (!file->read(reinterpret_cast<char*>(riffData.data()), riffData.size())) {
+      return false;
+    }
+    riffCodec.decode(riffData, sampleID);
     // 0x3231 appears to be IIDX
     // 0x3230 appears to be pop'n
     // SDVX apparently also uses .2dx?
@@ -85,21 +93,12 @@ bool load2DX(S2WContext* ctx, std::istream* file, uint64_t space)
       uint16_t tracks = parseInt<uint16_t>(buffer, 14);
       //std::cerr << tracks << "\t";
       if (tracks == 0x0000) {
-        sampleID = 0x10000 | space | (bgSamplesRead + 1);
+        // Keep track of the last background sample
+        sampleID = 0x10001 | space;
+        riffCodec.decode(riffData, sampleID);
       }
     }
-    //std::cerr << sampleID << " @ offset " << offsets[samplesRead] << ": " << std::hex << sampleType << std::dec << std::endl;
-    std::vector<uint8_t> riffData(parseInt<uint32_t>(buffer, 8));
-    file->ignore(riffOffset - 18);
-    if (!file->read(reinterpret_cast<char*>(riffData.data()), riffData.size())) {
-      return false;
-    }
-    riffCodec.decode(riffData, sampleID);
-    if (sampleID & 0x10000) {
-      bgSamplesRead++;
-    } else {
-      samplesRead++;
-    }
+    samplesRead++;
   }
   // Succeeded if all samples were read
   return samplesRead == numSamples;

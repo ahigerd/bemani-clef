@@ -79,12 +79,18 @@ OneTrack::OneTrack(std::istream& file, bool popn)
         SampleEvent* event = new SampleEvent;
         event->timestamp = offset / 1000.0;
         event->sampleID = keySamples[command][param];
+        if (popn) {
+          event->volume = 0.6;
+        }
         //std::cerr << "ks " << int(param) << " = " << event->sampleID << std::endl;
         addEvent(event);
         if (param == 7 && value) {
           event = new SampleEvent;
           event->timestamp = (offset + value) / 1000.0;
           event->sampleID = keySamples[command][param];
+          if (popn) {
+            event->volume = 0.6;
+          }
           addEvent(event);
         }
       }
@@ -104,6 +110,10 @@ OneTrack::OneTrack(std::istream& file, bool popn)
       break;
     case 4:
     case 5:
+    case 8:
+    case 10:
+    case 11:
+    case 12:
       // intentionally ignored
       break;
     case 6:
