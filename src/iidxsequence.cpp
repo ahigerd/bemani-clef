@@ -1,5 +1,5 @@
 #include "iidxsequence.h"
-#include "s2wcontext.h"
+#include "clefcontext.h"
 #include "codec/sampledata.h"
 #include "codec/riffcodec.h"
 #include "utility.h"
@@ -9,7 +9,7 @@
 #include <fstream>
 #include <iostream>
 
-IIDXSequence::IIDXSequence(S2WContext* ctx, const std::string& path)
+IIDXSequence::IIDXSequence(ClefContext* ctx, const std::string& path)
 : BaseSequence(ctx)
 {
   int dotPos = path.rfind('.');

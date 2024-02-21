@@ -5,24 +5,24 @@
 #include "ifs/ifs.h"
 #include "plugin/baseplugin.h"
 
-struct S2WPluginInfo {
-  S2WPLUGIN_STATIC_FIELDS
+struct ClefPluginInfo {
+  CLEF_PLUGIN_STATIC_FIELDS
 
-  static bool isPlayable(S2WContext* s2w, const std::string& filename, std::istream& file) {
-    return identifyFileType(s2w, filename, file) != FT_invalid;
+  static bool isPlayable(ClefContext* clef, const std::string& filename, std::istream& file) {
+    return identifyFileType(clef, filename, file) != FT_invalid;
   }
 
-  static double length(S2WContext* s2w, const std::string& filename, std::istream& file) {
+  static double length(ClefContext* clef, const std::string& filename, std::istream& file) {
     if (isIfsFile(file)) {
-      IFSSequence seq(s2w);
+      IFSSequence seq(clef);
       seq.addIFS(new IFS(file));
       return seq.duration();
     }
-    IIDXSequence seq(s2w, filename);
+    IIDXSequence seq(clef, filename);
     return seq.duration();
   }
 
-  static TagMap readTags(S2WContext* ctx, const std::string& filename, std::istream& /* unused */) {
+  static TagMap readTags(ClefContext* ctx, const std::string& filename, std::istream& /* unused */) {
     TagMap tagMap = TagsM3UMixin::readTags(ctx, filename);
     if (!tagMap.count("title")) {
       tagMap = TagsM3UMixin::readTags(ctx, IFS::pairedFile(filename));
@@ -30,7 +30,7 @@ struct S2WPluginInfo {
     return tagMap;
   }
 
-  static int sampleRate(S2WContext*, const std::string&, std::istream& file) {
+  static int sampleRate(ClefContext*, const std::string&, std::istream& file) {
     if (isIfsFile(file)) {
       return 48000;
     } else {
@@ -39,25 +39,25 @@ struct S2WPluginInfo {
     }
   }
 
-  SynthContext* prepare(S2WContext* s2w, const std::string& filename, std::istream& file) {
+  SynthContext* prepare(ClefContext* clef, const std::string& filename, std::istream& file) {
     if (isIfsFile(file)) {
       iidx.reset();
-      ifs.reset(new IFSSequence(s2w));
+      ifs.reset(new IFSSequence(clef));
       ifs->addIFS(new IFS(file));
       try {
-        auto paired(s2w->openFile(IFS::pairedFile(filename)));
+        auto paired(clef->openFile(IFS::pairedFile(filename)));
         if (paired) {
           ifs->addIFS(new IFS(*paired));
         }
       } catch (...) {
         // no paired file, ignore
       }
-      s2w->purgeSamples();
+      clef->purgeSamples();
       ifs->load();
       return ifs->initContext();
     }
     ifs.reset();
-    iidx.reset(new IIDXSequence(s2w, filename));
+    iidx.reset(new IIDXSequence(clef, filename));
     return iidx->initContext();
   }
 
@@ -70,17 +70,17 @@ struct S2WPluginInfo {
   std::unique_ptr<IFSSequence> ifs;
 };
 
-const std::string S2WPluginInfo::version = "0.3.3";
-const std::string S2WPluginInfo::pluginName = "bemani2wav Plugin";
-const std::string S2WPluginInfo::pluginShortName = "bemani2wav";
-ConstPairList S2WPluginInfo::extensions = {
+const std::string ClefPluginInfo::version = "0.3.4";
+const std::string ClefPluginInfo::pluginName = "bemani-clef Plugin";
+const std::string ClefPluginInfo::pluginShortName = "bemani-clef";
+ConstPairList ClefPluginInfo::extensions = {
   { "1", "Konami .1 sequences (*.1)" },
   { "2dx", "Konami .2dx sample banks (*.2dx)" },
   { "s3p", "Konami .s3p sample banks (*.s3p)" },
   { "ifs", "Konami IFS files (*.ifs)" },
 };
-const std::string S2WPluginInfo::about =
-  "bemani2wav copyright (C) 2020-2023 Adam Higerd\n"
+const std::string ClefPluginInfo::about =
+  "bemani-clef copyright (C) 2020-2024 Adam Higerd\n"
   "Distributed under the LGPLv2 license.";
 
-SEQ2WAV_PLUGIN(S2WPluginInfo);
+CLEF_PLUGIN(ClefPluginInfo);

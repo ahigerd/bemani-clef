@@ -25,7 +25,7 @@ namespace SampleSpaces {
 class IFSSequence : public BaseSequence<ITrack> {
 public:
   static uint64_t stringToSpaces(const std::string& channels);
-  IFSSequence(S2WContext* ctx, bool usePreview = false);
+  IFSSequence(ClefContext* ctx, bool usePreview = false);
 
   double sampleRate;
   std::unordered_map<uint64_t, VA3::Metadata> sampleData;

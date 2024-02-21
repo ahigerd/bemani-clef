@@ -3,11 +3,11 @@
 
 #include "seq/itrack.h"
 #include <vector>
-class S2WContext;
+class ClefContext;
 
 class PhaseTrack : public BasicTrack {
 public:
-  PhaseTrack(S2WContext* ctx, const std::vector<uint64_t>& streamIDs);
+  PhaseTrack(ClefContext* ctx, const std::vector<uint64_t>& streamIDs);
 
   double sampleRate;
 };

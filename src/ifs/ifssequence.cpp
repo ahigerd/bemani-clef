@@ -46,7 +46,7 @@ uint64_t IFSSequence::stringToSpaces(const std::string& channels)
   return spaces;
 }
 
-IFSSequence::IFSSequence(S2WContext* ctx, bool usePreview)
+IFSSequence::IFSSequence(ClefContext* ctx, bool usePreview)
 : BaseSequence<ITrack>(ctx), sampleRate(48000), mute(0), usePreview(usePreview)
 {
   // initializers only

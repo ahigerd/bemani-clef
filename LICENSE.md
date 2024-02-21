@@ -1,4 +1,4 @@
-bemani2wav is copyright (c) 2020 Adam Higerd
+bemani-clef is copyright (c) 2020-2024 Adam Higerd
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -18,8 +18,8 @@ IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 
-bemani2wav is based on seq2wav, copyright (c) 2020 Adam Higerd.
-seq2wav is distributed under the same terms as above.
+bemani-clef is based on libclef, copyright (c) 2020-2024 Adam Higerd.
+libclef is distributed under the same terms as above.
 
 Portions of this software were developed using documentation derived from
 [2dxrender](https://github.com/Kuroshirowak/2dxrender).

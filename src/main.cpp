@@ -2,7 +2,7 @@
 #include "ifs/ifssequence.h"
 #include "iidxsequence.h"
 #include "riffwriter.h"
-#include "s2wcontext.h"
+#include "clefcontext.h"
 #include "synth/synthcontext.h"
 #include "synth/channel.h"
 #include "commandargs.h"
@@ -12,7 +12,7 @@
 #include <iostream>
 #include <iomanip>
 
-int decodeWma(S2WContext* ctx, const std::string& infile, const std::string& filename) {
+int decodeWma(ClefContext* ctx, const std::string& infile, const std::string& filename) {
   AsfCodec wma(ctx);
   auto sample = wma.decodeFile(infile);
   RiffWriter riff(sample->sampleRate, sample->channels.size() > 1);
@@ -46,9 +46,9 @@ void saveOutput(SynthContext* ctx, std::string filename)
   riff.close();
 }
 
-int processIFS(CommandArgs& args, S2WContext& s2w, const char* programName)
+int processIFS(CommandArgs& args, ClefContext& clef, const char* programName)
 {
-  IFSSequence seq(&s2w, args.hasKey("preview"));
+  IFSSequence seq(&clef, args.hasKey("preview"));
   if (args.hasKey("mute")) {
     seq.setMutes(args.getString("mute"));
   }
@@ -131,10 +131,10 @@ int main(int argc, char** argv)
     return 1;
   }
 
-  S2WContext s2w;
+  ClefContext clef;
 
   if (args.hasKey("wma")) {
-    return decodeWma(&s2w, args.getString("wma"), args.getString("output", args.getString("wma") + ".wav"));
+    return decodeWma(&clef, args.getString("wma"), args.getString("output", args.getString("wma") + ".wav"));
   }
 
   std::string infile = args.positional().at(0);
@@ -150,9 +150,9 @@ int main(int argc, char** argv)
 
   try {
     if (isIFS) {
-      return processIFS(args, s2w, argv[0]);
+      return processIFS(args, clef, argv[0]);
     }
-    IIDXSequence seq(&s2w, infile);
+    IIDXSequence seq(&clef, infile);
 
     if (args.hasKey("verbose")) {
       // TODO: native tag format

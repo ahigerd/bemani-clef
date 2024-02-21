@@ -1,11 +1,12 @@
 #ifndef GD2W_IFS_H
 #define GD2W_IFS_H
 
-#include "s2wconfig.h"
+#include "clefconfig.h"
 #include <iostream>
 #include <unordered_map>
 #include <vector>
 #include "manifest.h"
+#include <stdint.h>
 
 class IFS {
 public:

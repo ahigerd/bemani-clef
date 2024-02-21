@@ -1,11 +1,11 @@
 #include "bankloaders.h"
-#include "s2wcontext.h"
+#include "clefcontext.h"
 #include "codec/riffcodec.h"
 #include "wma/asfcodec.h"
 #include "wma/wmacodec.h"
 #include <iostream>
 
-bool loadS3P(S2WContext* ctx, std::istream* file, uint64_t space)
+bool loadS3P(ClefContext* ctx, std::istream* file, uint64_t space)
 {
   AsfCodec wmaCodec(ctx);
   std::vector<char> buffer(12);
@@ -49,7 +49,7 @@ bool loadS3P(S2WContext* ctx, std::istream* file, uint64_t space)
   return samplesRead == numSamples;
 }
 
-bool load2DX(S2WContext* ctx, std::istream* file, uint64_t space)
+bool load2DX(ClefContext* ctx, std::istream* file, uint64_t space)
 {
   RiffCodec riffCodec(ctx);
   file->ignore(20);

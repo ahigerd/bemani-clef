@@ -3,7 +3,7 @@
 
 #include <iostream>
 #include <string>
-#include "s2wcontext.h"
+#include "clefcontext.h"
 
 enum BemaniFileType {
   FT_invalid,
@@ -13,7 +13,7 @@ enum BemaniFileType {
   FT_ifs,
 };
 
-BemaniFileType identifyFileType(S2WContext* ctx, const std::string& filename, std::istream& file);
+BemaniFileType identifyFileType(ClefContext* ctx, const std::string& filename, std::istream& file);
 bool isIfsFile(std::istream& file);
 
 #endif

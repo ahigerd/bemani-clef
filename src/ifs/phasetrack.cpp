@@ -1,8 +1,8 @@
 #include "phasetrack.h"
 #include "ifssequence.h"
-#include "s2wcontext.h"
+#include "clefcontext.h"
 
-PhaseTrack::PhaseTrack(S2WContext* ctx, const std::vector<uint64_t>& streamIDs)
+PhaseTrack::PhaseTrack(ClefContext* ctx, const std::vector<uint64_t>& streamIDs)
 {
   std::vector<SampleEvent*> events;
   double maxOffset = 0;

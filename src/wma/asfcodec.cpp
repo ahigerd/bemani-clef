@@ -35,7 +35,7 @@ std::pair<Iter8, Iter8> findWma(Iter8 start, Iter8 end) {
   return std::make_pair(start, wmaEnd);
 }
 
-AsfCodec::AsfCodec(S2WContext* ctx) : ICodec(ctx)
+AsfCodec::AsfCodec(ClefContext* ctx) : ICodec(ctx)
 {
   // initializers only
 }

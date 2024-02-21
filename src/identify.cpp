@@ -14,7 +14,7 @@ static bool isIfsFile(char header[36])
   return false;
 }
 
-BemaniFileType identifyFileType(S2WContext* ctx, const std::string& filename, std::istream& file)
+BemaniFileType identifyFileType(ClefContext* ctx, const std::string& filename, std::istream& file)
 {
   int extPos = filename.rfind(".");
   if (extPos != std::string::npos) {

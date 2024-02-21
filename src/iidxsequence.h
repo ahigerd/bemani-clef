@@ -5,11 +5,11 @@
 #include "synth/synthcontext.h"
 #include "plugin/baseplugin.h"
 #include "onetrack.h"
-class S2WContext;
+class ClefContext;
 
 class IIDXSequence : public BaseSequence<OneTrack> {
 public:
-  IIDXSequence(S2WContext* ctx, const std::string& path);
+  IIDXSequence(ClefContext* ctx, const std::string& path);
 
   std::string basePath;
 

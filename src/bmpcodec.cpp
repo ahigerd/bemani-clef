@@ -2,7 +2,7 @@
 #include "utility.h"
 #include "codec/adpcmcodec.h"
 
-BmpCodec::BmpCodec(S2WContext* ctx)
+BmpCodec::BmpCodec(ClefContext* ctx)
 : ICodec(ctx)
 {
   // initializers only

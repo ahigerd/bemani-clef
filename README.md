@@ -1,13 +1,9 @@
-bemani2wav
+bemani-clef
 ============
 
-bemani2wav is a player for Beatmania IIDX (and, eventually, Pop'n Music) arcade music tracks.
+bemani-clef is a player for Beatmania IIDX, GuitarFreaks and Drummania (Gitadora), and Pop'n Music arcade music tracks.
 
-Prebuilt plugins are available in the [downloads section](https://bitbucket.org/ahigerd/bemani2wav/downloads/):
-
-* (Windows) Winamp: [in_bemani2wav.dll](https://bitbucket.org/ahigerd/bemani2wav/downloads/in_bemani2wav.dll)
-* (Windows) Foobar2000: [foo_input_bemani2wav.dll](https://bitbucket.org/ahigerd/bemani2wav/downloads/foo_input_bemani2wav.dll)
-* (Ubuntu) Audacious: [aud_bemani2wav.so](https://bitbucket.org/ahigerd/bemani2wav/downloads/aud_bemani2wav.so)
+Prebuilt plugins are available in the [Releases section](https://github.com/ahigerd/bemani-clef/releases):
 
 Building
 --------
@@ -21,8 +17,8 @@ targets are recognized:
 * `audacious`: builds just the Audacious plugin, if supported.
 * `winamp`: builds just the Winamp plugin, if supported.
 * `foobar`: builds just the Foobar2000 plugin, if supported.
-* `aud_bemani2wav_d.dll`: builds a debug version of the Audacious plugin, if supported.
-* `in_bemani2wav_d.dll`: builds a debug version of the Winamp plugin, if supported.
+* `aud_bemani-clef_d.dll`: builds a debug version of the Audacious plugin, if supported.
+* `in_bemani-clef_d.dll`: builds a debug version of the Winamp plugin, if supported.
 
 The following make variables are also recognized:
 
@@ -45,8 +41,8 @@ edited in `msvc.mak`.
 
 License
 -------
-bemani2wav is copyright (c) 2020 Adam Higerd and distributed under the terms of the
+bemani-clef is copyright (c) 2020 Adam Higerd and distributed under the terms of the
 [MIT license](LICENSE.md).
 
-This project is based upon seq2wav, copyright (c) 2020 Adam Higerd and distributed
+This project is based upon libclef, copyright (c) 2020 Adam Higerd and distributed
 under the terms of the [MIT license](LICENSE.md).

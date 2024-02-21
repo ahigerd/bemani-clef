@@ -4,7 +4,7 @@ import os, sys
 
 notetxt = '''
 The .sd9 files in the root directory and the .2dx9 files in the individual track directories can be played using vgmstream (https://vgmstream.org/).
-The .1 files in the individual track directories can be played using bemani2wav (https://bitbucket.org/ahigerd/bemani2wav/downloads/).
+The .1 files in the individual track directories can be played using bemani-clef (https://github.com/ahigerd/bemani-clef/releases).
 '''
 
 for folder in sys.argv[1:]:

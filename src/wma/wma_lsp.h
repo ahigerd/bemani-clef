@@ -3,7 +3,7 @@
  * FFmpeg copyright (c) 2000-2004 The FFmpeg Project, Fabrice Bellard,
  *     Michael Niedermayer <michaelni@gmx.at>
  *
- * bemani2wav is free software. Most of its source code is licensed
+ * bemani-clef is free software. Most of its source code is licensed
  * under the MIT license, but files with this notice are derived from
  * FFmpeg. As a result, these files and any binary distribution compiled
  * from them may be redistributed and/or modified under the terms of the

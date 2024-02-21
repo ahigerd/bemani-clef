@@ -23,6 +23,7 @@
 build
 build_win
 *_plugin_import.cpp
+.qmake.stash
 
 # build outputs
 depends.mak
