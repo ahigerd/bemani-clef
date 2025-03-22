@@ -28,8 +28,8 @@ build_win
 # build outputs
 depends.mak
 include
-bemani2wav
-bemani2wav_d
+bemani-clef
+bemani-clef_d
 *.dll
 *.a
 *.so

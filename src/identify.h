@@ -13,7 +13,7 @@ enum BemaniFileType {
   FT_ifs,
 };
 
-BemaniFileType identifyFileType(ClefContext* ctx, const std::string& filename, std::istream& file);
+BemaniFileType identifyFileType(ClefContext* ctx, const std::string& filename, std::istream* file = nullptr);
 bool isIfsFile(std::istream& file);
 
 #endif

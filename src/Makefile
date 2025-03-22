@@ -18,7 +18,7 @@ MAIN_D = ../$(BUILDPATH)/main_d.o
 	rm -f $@
 	gcc-ar -rc $@ $(OBJS_R)
 
-../$(BUILDPATH)/lib$(PLUGIN_NAME)_d.a: ../libclef/$(BUILDPATH)/libclef_d.a $(filter-out ../$(BUILDPATH)/main_d.o,$(OBJS_R))
+../$(BUILDPATH)/lib$(PLUGIN_NAME)_d.a: ../libclef/$(BUILDPATH)/libclef_d.a $(filter-out ../$(BUILDPATH)/main_d.o,$(OBJS_D))
 	rm -f $@
 	gcc-ar -rc $@ $(OBJS_D)
 
