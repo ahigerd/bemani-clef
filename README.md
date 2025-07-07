@@ -41,8 +41,14 @@ edited in `msvc.mak`.
 
 License
 -------
-bemani-clef is copyright (c) 2020 Adam Higerd and distributed under the terms of the
-[MIT license](LICENSE.md).
+bemani-clef is copyright (c) 2020 Adam Higerd. Most of its source code is distributed under
+the terms of the [MIT license](LICENSE.md). Some files are derived from FFmpeg; these files
+are distributed under the terms of the [GNU Lesser General Public License](LICENSE-LGPL2.1)
+version 2.1 or later. Some files are derived from OggVorbis; these files are distributed
+under a BSD-style license found in [COPYING.Xiph](COPYIG.Xiph).
 
 This project is based upon libclef, copyright (c) 2020 Adam Higerd and distributed
 under the terms of the [MIT license](LICENSE.md).
+
+Compiled builds of bemani-clef are distributed under the terms of the
+[GNU Lesser General Public License](LICENSE-LGPL21) version 2.1 or later.
